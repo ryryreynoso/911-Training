@@ -336,6 +336,158 @@
     .feedback.show {
         display: block;
     }
+
+    /* Voice Call Interface Styles */
+    .voice-call-interface {
+        padding: 30px;
+        text-align: center;
+    }
+
+    .voice-call-container {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .call-avatar {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 60px;
+        box-shadow: 0 10px 30px rgba(231, 76, 60, 0.3);
+    }
+
+    .call-name {
+        font-size: 28px;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+
+    .call-status {
+        font-size: 16px;
+        color: #7f8c8d;
+        margin-bottom: 30px;
+    }
+
+    .call-transcript {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+        min-height: 200px;
+        max-height: 300px;
+        overflow-y: auto;
+        text-align: left;
+    }
+
+    .transcript-message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        line-height: 1.6;
+    }
+
+    .operator-voice {
+        background: white;
+        border-left: 4px solid #e74c3c;
+    }
+
+    .user-voice {
+        background: #e3f2fd;
+        border-left: 4px solid #3498db;
+    }
+
+    .transcript-message strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+    }
+
+    .voice-controls {
+        margin-bottom: 20px;
+    }
+
+    .voice-btn {
+        width: 100%;
+        padding: 25px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .voice-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 25px rgba(231, 76, 60, 0.4);
+    }
+
+    .voice-btn.listening {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.05);
+        }
+    }
+
+    .mic-icon {
+        font-size: 28px;
+    }
+
+    .listening-text {
+        color: #e74c3c;
+        font-weight: 600;
+        font-size: 16px;
+        margin-top: 15px;
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .user-speech {
+        color: #3498db;
+        font-size: 16px;
+        margin-top: 10px;
+        font-style: italic;
+        min-height: 20px;
+    }
+
+    .end-call-btn {
+        width: 80%;
+        padding: 15px;
+        background: #95a5a6;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .end-call-btn:hover {
+        background: #7f8c8d;
+    }
 </style>
 ```
 
@@ -361,6 +513,10 @@
         <button class="mode-btn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad); color: white;" onclick="startFreeChat()">
             <span class="icon">💬</span>
             <span>Free Practice Call</span>
+        </button>
+        <button class="mode-btn" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;" onclick="startVoiceCall()">
+            <span class="icon">📞</span>
+            <span>Voice Call Practice</span>
         </button>
     </div>
 
@@ -456,12 +612,44 @@
         </div>
         <button class="back-btn" onclick="endCall()">End Call</button>
     </div>
+
+    <!-- Voice Call Interface -->
+    <div class="voice-call-interface" id="voiceCallInterface" style="display: none;">
+        <div class="voice-call-container">
+            <div class="call-avatar">👮</div>
+            <h2 class="call-name">911 Operator</h2>
+            <p class="call-status" id="callStatus">Connecting...</p>
+            
+            <div class="call-transcript" id="callTranscript">
+                <div class="transcript-message operator-voice">
+                    <strong>Operator:</strong> <span id="operatorText">911, what's your emergency?</span>
+                </div>
+            </div>
+            
+            <div class="voice-controls">
+                <button class="voice-btn mic-btn" id="micBtn" onclick="toggleMicrophone()">
+                    <span class="mic-icon">🎤</span>
+                    <span class="mic-text">Tap to Speak</span>
+                </button>
+                <p class="listening-text" id="listeningText" style="display: none;">Listening...</p>
+                <p class="user-speech" id="userSpeech"></p>
+            </div>
+            
+            <button class="end-call-btn" onclick="endVoiceCall()">End Call</button>
+        </div>
+    </div>
 </div>
 
 <script>
     let currentScenario = null;
     let conversationHistory = [];
     let callEnded = false;
+    
+    // Voice recognition setup
+    let recognition = null;
+    let synthesis = window.speechSynthesis;
+    let isListening = false;
+    let voiceCallActive = false;
 
     const scenarios = {
         'fire': {
@@ -566,6 +754,203 @@
         document.getElementById('userInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('userInput').focus();
+    }
+    
+    function startVoiceCall() {
+        currentScenario = 'voice';
+        conversationHistory = [];
+        callEnded = false;
+        voiceCallActive = true;
+        window.conversationContext = null;
+        
+        // Check if browser supports speech recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert('Sorry, your browser doesn\'t support voice recognition. Please use Chrome, Safari, or Edge.');
+            return;
+        }
+        
+        // Request microphone permission first
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    // Permission granted, stop the stream and proceed
+                    stream.getTracks().forEach(track => track.stop());
+                    initializeVoiceCall();
+                })
+                .catch(function(err) {
+                    alert('Microphone access is required for voice calls. Please allow microphone access in your browser settings and try again.');
+                    console.error('Microphone permission denied:', err);
+                });
+        } else {
+            // Fallback - try to initialize anyway
+            initializeVoiceCall();
+        }
+    }
+    
+    function initializeVoiceCall() {
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            handleVoiceInput(transcript);
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                alert('Microphone access denied. Please:\n\n1. Tap the lock icon in your browser address bar\n2. Enable microphone permissions\n3. Reload the page and try again');
+                endVoiceCall();
+            } else if (event.error === 'no-speech') {
+                document.getElementById('callStatus').textContent = 'Didn\'t hear anything. Try again.';
+            } else {
+                document.getElementById('callStatus').textContent = 'Error: ' + event.error;
+            }
+            
+            document.getElementById('listeningText').style.display = 'none';
+            document.getElementById('micBtn').classList.remove('listening');
+            isListening = false;
+        };
+        
+        recognition.onend = function() {
+            document.getElementById('listeningText').style.display = 'none';
+            document.getElementById('micBtn').classList.remove('listening');
+            isListening = false;
+        };
+        
+        // Show voice interface
+        document.getElementById('modeSelection').style.display = 'none';
+        document.getElementById('voiceCallInterface').style.display = 'block';
+        document.getElementById('callStatus').textContent = 'Connected';
+        
+        // Speak first message
+        setTimeout(() => {
+            speakOperatorMessage("911, what's your emergency?");
+        }, 1000);
+    }
+    
+    function toggleMicrophone() {
+        if (callEnded) return;
+        
+        if (!isListening) {
+            // Start listening
+            isListening = true;
+            document.getElementById('micBtn').classList.add('listening');
+            document.getElementById('listeningText').style.display = 'block';
+            document.getElementById('userSpeech').textContent = '';
+            
+            const micTextElement = document.querySelector('.mic-text');
+            if (micTextElement) {
+                micTextElement.textContent = 'Listening...';
+            }
+            
+            recognition.start();
+        } else {
+            // Stop listening
+            recognition.stop();
+            isListening = false;
+        }
+    }
+    
+    function handleVoiceInput(transcript) {
+        console.log('User said:', transcript);
+        
+        // Display what user said
+        document.getElementById('userSpeech').textContent = transcript;
+        
+        // Add to transcript
+        const transcriptDiv = document.getElementById('callTranscript');
+        const userMsg = document.createElement('div');
+        userMsg.className = 'transcript-message user-voice';
+        userMsg.innerHTML = `<strong>You:</strong> <span>${transcript}</span>`;
+        transcriptDiv.appendChild(userMsg);
+        transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+        
+        // Add to conversation history
+        conversationHistory.push({ role: 'user', content: transcript });
+        
+        // Get operator response
+        setTimeout(() => {
+            const response = getRuleBasedResponse();
+            speakOperatorMessage(response);
+            
+            // Add to transcript
+            const operatorMsg = document.createElement('div');
+            operatorMsg.className = 'transcript-message operator-voice';
+            operatorMsg.innerHTML = `<strong>Operator:</strong> <span>${response}</span>`;
+            transcriptDiv.appendChild(operatorMsg);
+            transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+            
+            document.getElementById('operatorText').textContent = response;
+        }, 1000);
+    }
+    
+    function speakOperatorMessage(message) {
+        // Cancel any ongoing speech
+        synthesis.cancel();
+        
+        // Create utterance
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.rate = 0.9; // Slightly slower for clarity
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Try to use a female voice if available
+        const voices = synthesis.getVoices();
+        const femaleVoice = voices.find(voice => 
+            voice.name.includes('Female') || 
+            voice.name.includes('Samantha') ||
+            voice.name.includes('Karen')
+        );
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+        
+        utterance.onend = function() {
+            // Enable microphone after operator finishes speaking
+            if (!callEnded && voiceCallActive) {
+                document.getElementById('callStatus').textContent = 'Your turn to speak';
+            }
+        };
+        
+        document.getElementById('callStatus').textContent = 'Operator speaking...';
+        synthesis.speak(utterance);
+    }
+    
+    function endVoiceCall() {
+        voiceCallActive = false;
+        callEnded = true;
+        
+        if (recognition) {
+            recognition.stop();
+        }
+        synthesis.cancel();
+        
+        // Show feedback
+        const context = window.conversationContext || {};
+        let feedbackText = '';
+        
+        if (context.confirmedEmergency) {
+            if (context.hasLocation) {
+                feedbackText = '✅ Excellent job! You clearly explained the emergency and gave your location. In a real emergency, this is exactly what you need to do!';
+            } else {
+                feedbackText = '👍 Good attempt! You explained the emergency well. Remember to always give your address or location so help can reach you!';
+            }
+        } else {
+            feedbackText = '📚 Remember: 911 is ONLY for real emergencies. Use voice calls to practice speaking clearly and calmly in emergency situations.';
+        }
+        
+        alert(feedbackText);
+        
+        setTimeout(() => {
+            showModeSelection();
+            document.getElementById('voiceCallInterface').style.display = 'none';
+        }, 500);
     }
 
     function handleKeyPress(event) {
