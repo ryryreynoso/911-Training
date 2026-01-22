@@ -383,7 +383,8 @@
                 seemsScared: false,
                 seemsUnsure: false,
                 mentionedParent: false,
-                readyToEnd: false
+                readyToEnd: false,
+                nonEmergencyCount: 0
             };
             this.callEnded = false;
             this.messageCount = 0;
@@ -442,17 +443,44 @@
                 medical: ['sick', 'chest', 'heart', 'seizure', 'unconscious', 'passed out', 'fainted', 'dizzy', 'throwing up']
             };
             
-            const minorIssues = ['pizza', 'food', 'hungry', 'order', 'homework', 'lost pet', 'dog ran', 'cat missing', 'toy', 'bored', 'lonely', 'netflix', 'tv', 'game', 'scared of dark', 'nightmare', 'can\'t sleep'];
+            // EXPANDED non-emergency detection
+            const nonEmergencyKeywords = [
+                // Food related
+                'pizza', 'food', 'hungry', 'order', 'eat', 'dinner', 'lunch', 'breakfast', 'snack', 'meal', 'restaurant', 'mcdonalds', 'burger', 'fries', 'ice cream', 'candy', 'soda', 'juice',
+                // Homework/school
+                'homework', 'test', 'quiz', 'grade', 'teacher', 'school work', 'math problem', 'essay',
+                // Lost items/pets
+                'lost pet', 'dog ran', 'cat missing', 'lost toy', 'lost phone', 'can\'t find', 'missing my',
+                // Entertainment
+                'bored', 'lonely', 'netflix', 'tv', 'game', 'xbox', 'playstation', 'youtube', 'tiktok', 'video game',
+                // Minor issues
+                'scared of dark', 'nightmare', 'can\'t sleep', 'bad dream', 'thunder', 'lightning scared',
+                // Technology
+                'wifi', 'internet', 'computer', 'ipad', 'tablet', 'broke my phone',
+                // Questions/requests
+                'what time', 'weather', 'how do i', 'can you tell me', 'i have a question', 'joke', 'story'
+            ];
             
+            // Check if message contains non-emergency keywords
+            const isNonEmergency = nonEmergencyKeywords.some(phrase => userMsg.includes(phrase));
+            
+            // Track if user keeps giving non-emergency responses
+            if (isNonEmergency) {
+                this.context.nonEmergencyCount = (this.context.nonEmergencyCount || 0) + 1;
+            }
+            
+            // Detect parent/adult mentions
             if (userMsg.includes('mom') || userMsg.includes('dad') || userMsg.includes('parent') || userMsg.includes('adult')) {
                 this.context.mentionedParent = true;
             }
             
+            // Check for name
             const namePatterns = ['my name is', 'i\'m ', 'im ', 'this is ', 'call me', 'i am '];
             if (!this.context.userName && namePatterns.some(pattern => userMsg.includes(pattern))) {
                 this.context.userName = true;
             }
             
+            // Detect emergency type
             if (!this.context.issueType) {
                 for (const [type, keywords] of Object.entries(emergencyTypes)) {
                     if (keywords.some(keyword => userMsg.includes(keyword))) {
@@ -464,12 +492,41 @@
                 }
             }
             
+            // Check for location
             const locationWords = ['street', 'avenue', 'road', 'drive', 'lane', 'boulevard', 'house', 'home', 'school', 'park', 'store', 'apartment', 'building'];
             const hasNumber = /\d+/.test(userMsg);
             if ((hasNumber && locationWords.some(word => userMsg.includes(word))) || 
                 userMsg.includes('at ') || 
                 userMsg.includes('address')) {
                 this.context.hasLocation = true;
+            }
+            
+            // ========== HANDLE NON-EMERGENCY RESPONSES ==========
+            // If they keep giving non-emergency answers, educate them
+            if (isNonEmergency && !this.context.confirmedEmergency) {
+                if (this.messageCount === 1) {
+                    // First message is non-emergency
+                    if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry') || userMsg.includes('order') || userMsg.includes('eat')) {
+                        return "I understand you're hungry or want to order food. But 911 is only for emergencies - like if someone is hurt, can't breathe, or there's a fire. Is anyone hurt or in danger right now?";
+                    } else if (userMsg.includes('homework') || userMsg.includes('test') || userMsg.includes('school')) {
+                        return "I hear you're having trouble with schoolwork. But 911 is for emergencies only - like if someone needs medical help or there's a dangerous situation. Is there an actual emergency happening?";
+                    } else if (userMsg.includes('pet') || userMsg.includes('dog') || userMsg.includes('cat')) {
+                        return "Your pet is missing? That's really upsetting, I know. But 911 is for life-threatening emergencies. Is anyone hurt? Is there any danger happening right now?";
+                    } else if (userMsg.includes('bored') || userMsg.includes('lonely') || userMsg.includes('game') || userMsg.includes('tv')) {
+                        return "I understand you might be bored or want someone to talk to. But 911 is only for emergencies when someone needs immediate help. Is there a real emergency - like someone hurt or in danger?";
+                    } else {
+                        return "I hear you. But 911 is for serious emergencies only - like if someone is hurt, can't breathe, there's a fire, or someone is in danger. Is there an emergency like that happening right now?";
+                    }
+                } else if (this.messageCount === 2 && this.context.nonEmergencyCount >= 2) {
+                    // Second non-emergency response
+                    this.context.redirectAttempts++;
+                    return "I need to make sure you understand - 911 is ONLY for when someone needs help RIGHT NOW. Things like wanting food, help with homework, or lost pets are not 911 emergencies. You should talk to your parents or another adult about those things. Is there actually an emergency where someone is hurt or in danger?";
+                } else if (this.messageCount >= 3 && this.context.nonEmergencyCount >= 3) {
+                    // Third non-emergency response - firm redirect
+                    this.context.readyToEnd = true;
+                    this.context.confirmedEmergency = false;
+                    return "Listen carefully - you cannot call 911 for things like this. 911 is ONLY for real emergencies. Calling 911 for non-emergencies can get you or your parents in trouble, and it stops us from helping people who really need it. I need to hang up now. Talk to your parents about what you need. Goodbye.";
+                }
             }
             
             // ==================== MESSAGE 1 ====================
@@ -506,19 +563,7 @@
                     }
                 }
                 
-                if (minorIssues.some(word => userMsg.includes(word))) {
-                    if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry')) {
-                        return "I understand you're hungry. But 911 is for emergencies, like if someone is really hurt. Is anyone hurt or in danger at your house right now?";
-                    } else if (userMsg.includes('pet')) {
-                        return "Your pet is missing? I know that's really upsetting. But let me ask you - is anyone hurt? Is there any danger happening right now?";
-                    } else if (userMsg.includes('nightmare') || userMsg.includes('scared of dark')) {
-                        return "You're scared? That's okay, everyone gets scared sometimes. But 911 is for emergencies. Is there something dangerous happening? Is someone trying to hurt you?";
-                    } else if (userMsg.includes('homework')) {
-                        return "Homework can be tough! But 911 is for emergencies only. Let me check - is anyone hurt or sick at home? Is there any emergency?";
-                    } else {
-                        return "I hear you. But 911 is for really serious emergencies. Can you tell me - is anyone hurt? Is there a fire? Is something dangerous happening?";
-                    }
-                }
+                // Already handled non-emergency at top of function
                 
                 this.context.seemsUnsure = true;
                 return "It's okay, take a breath. You can tell me. What made you want to call 911? Is something wrong?";
@@ -526,6 +571,12 @@
             
             // ==================== MESSAGE 2 ====================
             else if (this.messageCount === 2) {
+                // Handle continued non-emergency talk
+                if (isNonEmergency && this.context.nonEmergencyCount >= 2 && !this.context.confirmedEmergency) {
+                    this.context.redirectAttempts++;
+                    return "Listen - that's not what 911 is for. 911 is ONLY for big emergencies like if someone can't breathe, there's a fire, or someone is really hurt. For other things, you need to talk to your mom, dad, or another adult. Is there a REAL emergency - yes or no?";
+                }
+                
                 if (this.context.confirmedEmergency === null && this.context.issueType) {
                     this.context.confirmedEmergency = true;
                     return "Okay, that IS an emergency. I'm going to help you. Where are you right now? Can you tell me your address or what place you're at?";
@@ -566,16 +617,19 @@
                     return "I'm listening. You can tell me anything. Is this about someone being hurt? Or a fire? Or something else?";
                 }
                 
-                if (!this.context.knowsIssue && minorIssues.some(word => userMsg.includes(word))) {
-                    this.context.redirectAttempts++;
-                    return "I see. That's not what 911 is for. 911 is only for big emergencies - like if someone can't breathe, or there's a fire, or someone is really hurt. Is your mom or dad home? Can you talk to them about this?";
-                }
-                
                 return "Tell me more. What exactly is happening right now?";
             }
             
             // ==================== MESSAGE 3 ====================
             else if (this.messageCount === 3) {
+                // Third non-emergency response - end the call
+                if (isNonEmergency && this.context.nonEmergencyCount >= 3 && !this.context.confirmedEmergency) {
+                    this.context.readyToEnd = true;
+                    this.context.confirmedEmergency = false;
+                    setTimeout(() => this.showFeedback(), 2000);
+                    return "I have to hang up now. Remember - ONLY call 911 for real emergencies. Calling for things like food, homework, or games is wrong and can get you in trouble. Talk to your parents about what you need. Goodbye.";
+                }
+                
                 if (this.context.confirmedEmergency && this.context.knowsIssue) {
                     if (this.context.hasLocation) {
                         if (this.context.issueType === 'fire') {
@@ -910,9 +964,9 @@
                     console.log('⚠️ Using default voice');
                 }
                 
-                // Faster and more natural speech
-                utterance.rate = 1.1;  // Increased from 0.9 - speaks faster
-                utterance.pitch = 1.0;  // Slightly lower for more natural sound
+                // Natural conversational speech speed
+                utterance.rate = 0.95;  // Slightly slower than 1.0 for clarity
+                utterance.pitch = 1.0;  // Natural pitch
                 utterance.volume = 1.0;
                 utterance.lang = 'en-US';
                 
