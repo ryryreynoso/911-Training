@@ -802,21 +802,124 @@
             return;
         }
         
-        // Request microphone permission first
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function(stream) {
-                    // Permission granted, stop the stream and proceed
-                    stream.getTracks().forEach(track => track.stop());
-                    initializeVoiceCall();
-                })
-                .catch(function(err) {
-                    alert('Microphone access is required for voice calls. Please allow microphone access in your browser settings and try again.');
-                    console.error('Microphone permission denied:', err);
-                });
+        // Show voice interface immediately
+        document.getElementById('modeSelection').style.display = 'none';
+        document.getElementById('voiceCallInterface').style.display = 'block';
+        document.getElementById('callStatus').textContent = 'Connecting...';
+        
+        // Initialize voices first
+        const voices = synthesis.getVoices();
+        console.log('Initial voices:', voices.length);
+        
+        if (voices.length === 0) {
+            console.log('Waiting for voices to load...');
+            synthesis.onvoiceschanged = function() {
+                console.log('Voices loaded:', synthesis.getVoices().length);
+                startCallSequence();
+            };
         } else {
-            // Fallback - try to initialize anyway
-            initializeVoiceCall();
+            startCallSequence();
+        }
+    }
+    
+    function startCallSequence() {
+        // Speak first immediately
+        document.getElementById('callStatus').textContent = 'Connected';
+        console.log('🔊 Playing operator voice...');
+        
+        // Speak the greeting
+        speakOperatorMessage("911, what's your emergency?", () => {
+            console.log('✅ Operator finished speaking, initializing microphone...');
+            // Wait a moment then initialize microphone
+            setTimeout(() => {
+                initializeMicrophone();
+            }, 800);
+        });
+    }
+    
+    function initializeMicrophone() {
+        console.log('🎤 Initializing microphone...');
+        
+        // Initialize speech recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        let currentTranscript = '';
+        
+        recognition.onstart = function() {
+            console.log('✅ MICROPHONE ACTIVE');
+            document.getElementById('callStatus').textContent = '🎤 Speak now!';
+            document.getElementById('listeningText').textContent = '🔴 LISTENING';
+            document.getElementById('listeningText').style.display = 'block';
+        };
+        
+        recognition.onresult = function(event) {
+            currentTranscript = '';
+            
+            // Get all results
+            for (let i = 0; i < event.results.length; i++) {
+                currentTranscript += event.results[i][0].transcript;
+            }
+            
+            console.log('👂 Heard:', currentTranscript);
+            document.getElementById('userSpeech').textContent = currentTranscript;
+            
+            // If final result, process it
+            if (event.results[event.results.length - 1].isFinal) {
+                console.log('✅ FINAL:', currentTranscript);
+                recognition.stop();
+                processUserSpeech(currentTranscript);
+            }
+        };
+        
+        recognition.onspeechstart = function() {
+            console.log('🗣️ SPEECH DETECTED!');
+            document.getElementById('callStatus').textContent = '🗣️ I hear you!';
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('❌ ERROR:', event.error);
+            
+            if (event.error === 'not-allowed') {
+                alert('🚫 MICROPHONE BLOCKED!\n\nYou are in the Claude app. This will NOT work here.\n\n✅ SOLUTION:\n1. Open Safari browser\n2. Go to the website URL\n3. Allow microphone\n\nVoice ONLY works in Safari!');
+                endVoiceCall();
+                return;
+            }
+            
+            if (event.error === 'no-speech') {
+                console.log('No speech, restarting...');
+                setTimeout(() => {
+                    if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                        recognition.start();
+                    }
+                }, 500);
+            }
+        };
+        
+        recognition.onend = function() {
+            console.log('⏹️ Recognition ended');
+            
+            // Auto-restart
+            if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                console.log('🔄 Restarting...');
+                setTimeout(() => {
+                    if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                        recognition.start();
+                    }
+                }, 300);
+            }
+        };
+        
+        // Start listening!
+        console.log('🎙️ Starting recognition...');
+        try {
+            recognition.start();
+        } catch (e) {
+            console.error('Failed to start:', e);
+            alert('Microphone error. Are you in Safari? Check permissions.');
         }
     }
     
@@ -1107,77 +1210,76 @@
     }
     
     function speakOperatorMessage(message, callback) {
-        console.log('Attempting to speak:', message);
+        console.log('🔊 Speaking:', message);
         
         // Cancel any ongoing speech
-        synthesis.cancel();
+        if (synthesis.speaking) {
+            synthesis.cancel();
+        }
         
-        // Wait a moment for cancel to complete
+        // Wait for cancel to finish
         setTimeout(() => {
-            // Create utterance
             const utterance = new SpeechSynthesisUtterance(message);
-            utterance.rate = 0.9; // Slightly slower for clarity
+            utterance.rate = 0.85;
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
             utterance.lang = 'en-US';
             
-            // Try to use a female voice if available
+            // Get voices
             const voices = synthesis.getVoices();
-            console.log('Selecting from', voices.length, 'voices');
+            console.log('Available voices:', voices.length);
             
-            // Prefer female English voices
-            const femaleVoice = voices.find(voice => 
-                voice.lang.includes('en') && (
-                    voice.name.includes('Female') || 
-                    voice.name.includes('Samantha') ||
-                    voice.name.includes('Karen') ||
-                    voice.name.includes('Victoria') ||
-                    voice.name.includes('Susan') ||
-                    voice.name.includes('Zira') ||
-                    voice.name.includes('Hazel')
-                )
-            );
-            
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
-                console.log('Using voice:', femaleVoice.name);
-            } else if (voices.length > 0) {
-                // Use any English voice
-                const englishVoice = voices.find(v => v.lang.includes('en'));
-                if (englishVoice) {
-                    utterance.voice = englishVoice;
-                    console.log('Using voice:', englishVoice.name);
+            if (voices.length > 0) {
+                // Try to find a good female English voice
+                const goodVoice = voices.find(v => 
+                    v.lang.startsWith('en') && 
+                    (v.name.includes('Female') || 
+                     v.name.includes('Samantha') || 
+                     v.name.includes('Zira') ||
+                     v.name.includes('Karen'))
+                );
+                
+                if (goodVoice) {
+                    utterance.voice = goodVoice;
+                    console.log('Using voice:', goodVoice.name);
+                } else {
+                    // Use first English voice
+                    const englishVoice = voices.find(v => v.lang.startsWith('en'));
+                    if (englishVoice) {
+                        utterance.voice = englishVoice;
+                        console.log('Using voice:', englishVoice.name);
+                    }
                 }
             }
             
             utterance.onstart = function() {
-                console.log('Speech started');
+                console.log('▶️ Speech STARTED');
                 document.getElementById('callStatus').textContent = 'Operator speaking...';
             };
             
             utterance.onend = function() {
-                console.log('Speech ended');
-                // Enable microphone after operator finishes speaking
-                if (!callEnded && voiceCallActive) {
-                    document.getElementById('callStatus').textContent = 'Listening...';
-                }
-                if (callback) {
-                    callback();
-                }
+                console.log('⏹️ Speech ENDED');
+                document.getElementById('callStatus').textContent = 'Your turn';
+                if (callback) callback();
             };
             
-            utterance.onerror = function(event) {
-                console.error('Speech synthesis error:', event.error);
-                document.getElementById('callStatus').textContent = 'Voice error - check console';
-                
-                // Still call callback even on error
-                if (callback) {
-                    callback();
-                }
+            utterance.onerror = function(e) {
+                console.error('❌ Speech error:', e);
+                // Still call callback
+                if (callback) callback();
             };
             
-            console.log('Starting speech synthesis...');
+            // Speak!
+            console.log('Starting synthesis...');
             synthesis.speak(utterance);
+            
+            // Force it to start
+            setTimeout(() => {
+                if (!synthesis.speaking) {
+                    console.log('⚠️ Speech not starting, trying again...');
+                    synthesis.speak(utterance);
+                }
+            }, 100);
         }, 100);
     }
     
