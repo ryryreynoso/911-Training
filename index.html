@@ -449,24 +449,56 @@
                 'pizza', 'food', 'hungry', 'order', 'eat', 'dinner', 'lunch', 'breakfast', 'snack', 'meal', 'restaurant', 'mcdonalds', 'burger', 'fries', 'ice cream', 'candy', 'soda', 'juice',
                 // Homework/school
                 'homework', 'test', 'quiz', 'grade', 'teacher', 'school work', 'math problem', 'essay',
-                // Lost items/pets
+                // Lost items/pets (non-emergency)
                 'lost pet', 'dog ran', 'cat missing', 'lost toy', 'lost phone', 'can\'t find', 'missing my',
                 // Entertainment
-                'bored', 'lonely', 'netflix', 'tv', 'game', 'xbox', 'playstation', 'youtube', 'tiktok', 'video game',
+                'bored', 'lonely', 'netflix', 'tv', 'game', 'xbox', 'playstation', 'youtube', 'tiktok', 'video game', 'play with',
                 // Minor issues
                 'scared of dark', 'nightmare', 'can\'t sleep', 'bad dream', 'thunder', 'lightning scared',
                 // Technology
                 'wifi', 'internet', 'computer', 'ipad', 'tablet', 'broke my phone',
                 // Questions/requests
-                'what time', 'weather', 'how do i', 'can you tell me', 'i have a question', 'joke', 'story'
+                'what time', 'weather', 'how do i', 'can you tell me', 'i have a question', 'joke', 'story', 'sing',
+                // Other non-emergencies
+                'prank', 'just kidding', 'nevermind', 'nothing', 'forget it'
             ];
             
-            // Check if message contains non-emergency keywords
+            // Check if this specific message is non-emergency
             const isNonEmergency = nonEmergencyKeywords.some(phrase => userMsg.includes(phrase));
             
-            // Track if user keeps giving non-emergency responses
-            if (isNonEmergency) {
+            // Detect emergency type in this message
+            let hasEmergencyInMessage = false;
+            for (const [type, keywords] of Object.entries(emergencyTypes)) {
+                if (keywords.some(keyword => userMsg.includes(keyword))) {
+                    hasEmergencyInMessage = true;
+                    if (!this.context.issueType) {
+                        this.context.issueType = type;
+                        this.context.confirmedEmergency = true;
+                        this.context.knowsIssue = true;
+                    }
+                    break;
+                }
+            }
+            
+            // Track consecutive non-emergency responses
+            if (isNonEmergency && !hasEmergencyInMessage) {
                 this.context.nonEmergencyCount = (this.context.nonEmergencyCount || 0) + 1;
+                console.log('🚫 Non-emergency count:', this.context.nonEmergencyCount);
+            } else if (hasEmergencyInMessage) {
+                // Reset count if they mention an actual emergency
+                this.context.nonEmergencyCount = 0;
+                console.log('✅ Emergency detected, count reset');
+            }
+            
+            // =======================================================
+            // CRITICAL: Check for 2 non-emergency responses IN A ROW
+            // =======================================================
+            if (this.context.nonEmergencyCount >= 2 && !this.context.confirmedEmergency) {
+                console.log('🛑 Ending call - 2 non-emergency responses detected');
+                this.context.readyToEnd = true;
+                this.context.confirmedEmergency = false;
+                setTimeout(() => this.showFeedback(), 2000);
+                return "I need to end this call now. Remember - you should ONLY call 911 when there's a real emergency, like if someone is hurt, can't breathe, there's a fire, or someone is in danger. For everything else, talk to your parents or another trusted adult. Take care. Goodbye.";
             }
             
             // Detect parent/adult mentions
@@ -480,18 +512,6 @@
                 this.context.userName = true;
             }
             
-            // Detect emergency type
-            if (!this.context.issueType) {
-                for (const [type, keywords] of Object.entries(emergencyTypes)) {
-                    if (keywords.some(keyword => userMsg.includes(keyword))) {
-                        this.context.issueType = type;
-                        this.context.confirmedEmergency = true;
-                        this.context.knowsIssue = true;
-                        break;
-                    }
-                }
-            }
-            
             // Check for location
             const locationWords = ['street', 'avenue', 'road', 'drive', 'lane', 'boulevard', 'house', 'home', 'school', 'park', 'store', 'apartment', 'building'];
             const hasNumber = /\d+/.test(userMsg);
@@ -501,36 +521,25 @@
                 this.context.hasLocation = true;
             }
             
-            // ========== HANDLE NON-EMERGENCY RESPONSES ==========
-            // If they keep giving non-emergency answers, educate them
-            if (isNonEmergency && !this.context.confirmedEmergency) {
-                if (this.messageCount === 1) {
-                    // First message is non-emergency
-                    if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry') || userMsg.includes('order') || userMsg.includes('eat')) {
-                        return "I understand you're hungry or want to order food. But 911 is only for emergencies - like if someone is hurt, can't breathe, or there's a fire. Is anyone hurt or in danger right now?";
-                    } else if (userMsg.includes('homework') || userMsg.includes('test') || userMsg.includes('school')) {
-                        return "I hear you're having trouble with schoolwork. But 911 is for emergencies only - like if someone needs medical help or there's a dangerous situation. Is there an actual emergency happening?";
-                    } else if (userMsg.includes('pet') || userMsg.includes('dog') || userMsg.includes('cat')) {
-                        return "Your pet is missing? That's really upsetting, I know. But 911 is for life-threatening emergencies. Is anyone hurt? Is there any danger happening right now?";
-                    } else if (userMsg.includes('bored') || userMsg.includes('lonely') || userMsg.includes('game') || userMsg.includes('tv')) {
-                        return "I understand you might be bored or want someone to talk to. But 911 is only for emergencies when someone needs immediate help. Is there a real emergency - like someone hurt or in danger?";
-                    } else {
-                        return "I hear you. But 911 is for serious emergencies only - like if someone is hurt, can't breathe, there's a fire, or someone is in danger. Is there an emergency like that happening right now?";
-                    }
-                } else if (this.messageCount === 2 && this.context.nonEmergencyCount >= 2) {
-                    // Second non-emergency response
-                    this.context.redirectAttempts++;
-                    return "I need to make sure you understand - 911 is ONLY for when someone needs help RIGHT NOW. Things like wanting food, help with homework, or lost pets are not 911 emergencies. You should talk to your parents or another adult about those things. Is there actually an emergency where someone is hurt or in danger?";
-                } else if (this.messageCount >= 3 && this.context.nonEmergencyCount >= 3) {
-                    // Third non-emergency response - firm redirect
-                    this.context.readyToEnd = true;
-                    this.context.confirmedEmergency = false;
-                    return "Listen carefully - you cannot call 911 for things like this. 911 is ONLY for real emergencies. Calling 911 for non-emergencies can get you or your parents in trouble, and it stops us from helping people who really need it. I need to hang up now. Talk to your parents about what you need. Goodbye.";
-                }
-            }
-            
             // ==================== MESSAGE 1 ====================
             if (this.messageCount === 1) {
+                // First message is clearly non-emergency
+                if (isNonEmergency && !hasEmergencyInMessage) {
+                    if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry') || userMsg.includes('order') || userMsg.includes('eat')) {
+                        return "I understand you want food. But 911 is ONLY for emergencies - like if someone is hurt, can't breathe, or there's a fire. Is there an actual emergency happening right now?";
+                    } else if (userMsg.includes('homework') || userMsg.includes('test') || userMsg.includes('school')) {
+                        return "I hear you're having trouble with school. But 911 is for life-threatening emergencies only. Is anyone hurt or in danger right now?";
+                    } else if (userMsg.includes('pet') || userMsg.includes('dog') || userMsg.includes('cat')) {
+                        return "Your pet is missing? I know that's upsetting. But 911 is for emergencies where someone's life is in danger. Is anyone hurt right now?";
+                    } else if (userMsg.includes('bored') || userMsg.includes('lonely') || userMsg.includes('game') || userMsg.includes('tv')) {
+                        return "911 is only for emergencies when someone needs immediate help. Is there a real emergency - like someone hurt, a fire, or someone in danger?";
+                    } else if (userMsg.includes('prank') || userMsg.includes('just kidding')) {
+                        return "Prank calling 911 is illegal and can get you in serious trouble. It also stops us from helping people who really need it. Is there an actual emergency or not?";
+                    } else {
+                        return "911 is for serious emergencies only. Is there an emergency like someone being hurt, a fire, or someone in danger happening right now?";
+                    }
+                }
+                
                 if (userMsg.match(/^(hi|hello|hey|um|uh|help)$/)) {
                     return "Hi there. It's okay, I'm here to help. Can you tell me what's going on?";
                 }
@@ -563,10 +572,95 @@
                     }
                 }
                 
-                // Already handled non-emergency at top of function
-                
                 this.context.seemsUnsure = true;
                 return "It's okay, take a breath. You can tell me. What made you want to call 911? Is something wrong?";
+            }
+            
+            // ==================== MESSAGE 2+ ====================
+            // At this point, check first if 2 non-emergency responses (already handled above)
+            
+            else if (this.messageCount === 2) {
+                // If first was non-emergency and this is too, call was already ended above
+                
+                if (this.context.confirmedEmergency === null && this.context.issueType) {
+                    this.context.confirmedEmergency = true;
+                    return "Okay, that IS an emergency. I'm going to help you. Where are you right now? Can you tell me your address or what place you're at?";
+                }
+                
+                if (userMsg.includes('yes') || userMsg.includes('yeah')) {
+                    if (!this.context.knowsIssue) {
+                        return "Alright. Tell me what's happening. Is someone hurt? Is there a fire? What's the emergency?";
+                    } else if (this.context.confirmedEmergency && !this.context.hasLocation) {
+                        return "Good. Now I need to know where you are. What's your address? What street do you live on?";
+                    }
+                }
+                
+                if (userMsg.includes('no') || userMsg.includes('nope')) {
+                    if (!this.context.confirmedEmergency && this.context.redirectAttempts === 0) {
+                        this.context.redirectAttempts++;
+                        this.context.nonEmergencyCount++;
+                        return "So there's no emergency? Then why are you calling 911? This line is only for emergencies.";
+                    }
+                }
+                
+                if (this.context.issueType && this.context.confirmedEmergency) {
+                    if (this.context.issueType === 'fire') {
+                        return "A fire - okay. Are you and everyone else outside and safe? Where is your house?";
+                    } else if (this.context.issueType === 'injury') {
+                        return "They're hurt. Is it bad? Are they bleeding a lot? Where are you?";
+                    } else if (this.context.issueType === 'breathing') {
+                        return "Trouble breathing is serious. Is their face turning blue? Do you know your address?";
+                    } else {
+                        return "I understand. I'm going to send help. What's your address? Or are you at home, school, or somewhere else?";
+                    }
+                }
+                
+                if (this.context.hasLocation && !this.context.knowsIssue) {
+                    return "Okay, I've got your location. Now help me understand what's happening. Is someone hurt? Did something happen?";
+                }
+                
+                if (!this.context.knowsIssue && !this.context.hasLocation) {
+                    return "I'm listening. You can tell me anything. Is this about someone being hurt? Or a fire? Or something else?";
+                }
+                
+                return "Tell me more. What exactly is happening right now?";
+            }
+            
+            // ==================== MESSAGE 3 ====================
+            else if (this.messageCount === 3) {
+                if (this.context.confirmedEmergency && this.context.knowsIssue) {
+                    if (this.context.hasLocation) {
+                        if (this.context.issueType === 'fire') {
+                            return "Okay. Help is coming right now - fire trucks are on the way. Stay outside and stay away from the building. Are you with other people?";
+                        } else if (this.context.issueType === 'injury') {
+                            return "An ambulance is coming to you right now. Don't try to move the person who's hurt. Can you stay with them?";
+                        } else if (this.context.issueType === 'breathing') {
+                            return "Paramedics are coming as fast as they can. If they can sit up, try to help them sit up. Help will be there soon.";
+                        } else if (this.context.issueType === 'crime') {
+                            return "Police are on their way right now. Stay hidden and stay quiet. Keep this phone with you.";
+                        } else {
+                            return "Help is on the way to you. You did exactly the right thing by calling 911.";
+                        }
+                    } else {
+                        return "I need your location to send help. Can you look outside and see a street sign? Or tell me if you're at home, at school, or somewhere else?";
+                    }
+                }
+                
+                if (!this.context.knowsIssue && this.context.redirectAttempts < 2) {
+                    this.context.redirectAttempts++;
+                    return "I'm trying to understand so I can help you. Is anyone having trouble breathing? Is anyone bleeding? Is there a fire you can see?";
+                }
+                
+                if (this.context.confirmedEmergency === false && this.context.redirectAttempts >= 2) {
+                    this.context.redirectAttempts++;
+                    if (this.context.mentionedParent) {
+                        return "So this isn't an emergency, which is good - everyone's safe! For things like this, you should talk to your parents instead of calling 911. Are they home right now?";
+                    } else {
+                        return "I understand now. This isn't a 911 emergency, which means everyone is safe - that's good! 911 is only for when someone needs help RIGHT NOW. For other stuff, you should talk to your parents. Is there a grown-up at home with you?";
+                    }
+                }
+                
+                return "Let's try this - can you tell me in one sentence what's wrong? Like 'my brother fell' or 'there's smoke'?";
             }
             
             // ==================== MESSAGE 2 ====================
