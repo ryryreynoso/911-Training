@@ -686,82 +686,123 @@
         
         // Voice Call Functions
         startVoiceCall() {
+            console.log('🚀 Starting voice call...');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 alert('Voice recognition is not supported in this browser. Please use Safari or Chrome on a real device (not the Claude app).');
                 return;
             }
             
-            this.voiceActive = true;
-            this.resetChat();
-            this.hideAll();
-            document.getElementById('voiceScreen').classList.add('active');
-            document.getElementById('voiceTranscript').innerHTML = '<div class="transcript-message operator-voice"><strong>Operator:</strong> <span>911, what\'s your emergency?</span></div>';
-            document.getElementById('voiceStatus').textContent = 'Connected';
-            
-            setTimeout(() => {
-                this.speak("911, what's your emergency?", () => {
-                    setTimeout(() => this.initMic(), 800);
+            // Request microphone permission first
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    console.log('✅ Microphone permission granted');
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    this.voiceActive = true;
+                    this.resetChat();
+                    this.hideAll();
+                    document.getElementById('voiceScreen').classList.add('active');
+                    document.getElementById('voiceTranscript').innerHTML = '<div class="transcript-message operator-voice"><strong>Operator:</strong> <span>911, what\'s your emergency?</span></div>';
+                    document.getElementById('voiceStatus').textContent = 'Connected';
+                    
+                    setTimeout(() => {
+                        this.speak("911, what's your emergency?", () => {
+                            setTimeout(() => this.initMic(), 800);
+                        });
+                    }, 1000);
+                })
+                .catch(err => {
+                    console.error('❌ Microphone permission denied:', err);
+                    alert('Microphone access is required for voice calls. Please:\n\n1. Make sure you\'re in Safari (NOT the Claude app)\n2. Allow microphone when prompted\n3. Check Settings > Safari > Microphone\n\nThen try again.');
                 });
-            }, 1000);
         },
         
         initMic() {
+            console.log('🎤 Initializing microphone...');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             this.recognition = new SpeechRecognition();
             this.recognition.continuous = false;
             this.recognition.interimResults = true;
             this.recognition.lang = 'en-US';
+            this.recognition.maxAlternatives = 1;
             
             this.recognition.onstart = () => {
-                console.log('🎤 Microphone started');
-                document.getElementById('voiceStatus').textContent = '🎤 Listening...';
+                console.log('✅ Microphone is ACTIVE and listening');
+                document.getElementById('voiceStatus').textContent = '🎤 LISTENING - Speak now!';
+                document.getElementById('voiceStatus').style.color = '#2ecc71';
+            };
+            
+            this.recognition.onaudiostart = () => {
+                console.log('🔊 Audio capture started');
+            };
+            
+            this.recognition.onspeechstart = () => {
+                console.log('👂 Speech detected!');
+                document.getElementById('voiceStatus').textContent = '👂 I hear you...';
             };
             
             this.recognition.onresult = (event) => {
+                console.log('📝 Got speech result');
                 let transcript = '';
                 for (let i = 0; i < event.results.length; i++) {
                     transcript += event.results[i][0].transcript;
+                    console.log(`Result ${i}: "${event.results[i][0].transcript}" (final: ${event.results[i].isFinal})`);
                 }
-                document.getElementById('userSpeech').textContent = transcript;
+                document.getElementById('userSpeech').textContent = '💭 ' + transcript;
                 
                 if (event.results[event.results.length - 1].isFinal) {
-                    console.log('📝 Final transcript:', transcript);
+                    console.log('✅ Final transcript:', transcript);
                     this.recognition.stop();
                     this.processVoice(transcript);
                 }
             };
             
             this.recognition.onerror = (e) => {
-                console.error('❌ Speech error:', e.error);
+                console.error('❌ Speech recognition error:', e.error);
+                document.getElementById('voiceStatus').style.color = '#e74c3c';
+                
                 if (e.error === 'not-allowed') {
-                    alert('Microphone access denied. Please:\n1. Make sure you\'re in Safari (not Claude app)\n2. Allow microphone access when prompted\n3. Check your phone/browser settings');
+                    document.getElementById('voiceStatus').textContent = '❌ Microphone blocked';
+                    alert('Microphone blocked! Please:\n\n1. Open this in SAFARI browser (not Claude app)\n2. Tap the "aA" in address bar\n3. Tap "Website Settings"\n4. Enable "Microphone"\n5. Reload the page');
                     this.endVoiceCall();
                 } else if (e.error === 'no-speech') {
-                    console.log('No speech detected, restarting...');
+                    console.log('⚠️ No speech detected, will retry...');
+                    document.getElementById('voiceStatus').textContent = '🎤 Listening... (speak louder?)';
+                } else if (e.error === 'audio-capture') {
+                    document.getElementById('voiceStatus').textContent = '❌ No microphone found';
+                    alert('No microphone detected. Make sure:\n1. You\'re on a real phone/computer\n2. Microphone permissions are enabled\n3. You\'re in Safari, not the Claude app');
+                    this.endVoiceCall();
+                } else if (e.error === 'network') {
+                    console.log('Network error, will retry');
                 }
             };
             
             this.recognition.onend = () => {
-                console.log('👂 Recognition ended');
+                console.log('👋 Recognition ended');
+                document.getElementById('voiceStatus').style.color = '#7f8c8d';
+                
                 if (this.voiceActive && !this.synthesis.speaking) {
                     setTimeout(() => {
                         if (this.voiceActive) {
-                            console.log('🔄 Restarting recognition...');
+                            console.log('🔄 Auto-restarting recognition...');
                             try {
                                 this.recognition.start();
                             } catch (e) {
-                                console.log('Recognition restart skipped (already running)');
+                                console.log('⚠️ Restart failed (already running):', e.message);
                             }
                         }
-                    }, 300);
+                    }, 500);
                 }
             };
             
+            console.log('🚀 Starting recognition...');
             try {
                 this.recognition.start();
+                document.getElementById('voiceStatus').textContent = 'Starting microphone...';
             } catch (e) {
-                console.error('Failed to start recognition:', e);
+                console.error('❌ Failed to start recognition:', e);
+                alert('Could not start microphone. Make sure you\'re in Safari browser.');
             }
         },
         
