@@ -12,13 +12,17 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .container {
             max-width: 500px;
-            margin: 0 auto;
+            width: 100%;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
         }
         .header {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -26,8 +30,14 @@
             padding: 25px;
             text-align: center;
         }
-        .screen { display: none; padding: 30px; }
-        .screen.active { display: block; }
+        .header h1 { font-size: 28px; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        .mode-selection, .lesson-content, .chat-interface, .scenario-selection, .voice-call-interface {
+            display: none;
+            padding: 30px;
+        }
+        .mode-selection.active, .lesson-content.active, .chat-interface.active, 
+        .scenario-selection.active, .voice-call-interface.active { display: block; }
         .mode-btn {
             width: 100%;
             padding: 20px;
@@ -37,28 +47,46 @@
             font-size: 18px;
             font-weight: 600;
             cursor: pointer;
-            color: white;
+            transition: all 0.3s;
             display: flex;
             align-items: center;
             gap: 15px;
+            color: white;
         }
         .mode-btn:hover { transform: translateY(-2px); }
-        .back-btn {
-            width: 100%;
-            padding: 15px;
-            background: #95a5a6;
-            color: white;
-            border: none;
+        .icon { font-size: 32px; }
+        .lesson-card {
+            background: #f8f9fa;
+            padding: 20px;
             border-radius: 12px;
-            cursor: pointer;
-            margin-top: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #3498db;
         }
+        .lesson-card h3 { color: #2c3e50; margin-bottom: 10px; }
+        .lesson-card ul { margin-left: 20px; margin-top: 10px; }
+        .lesson-card li { margin-bottom: 8px; }
+        .emergency-example { background: #ffe5e5; border-left-color: #e74c3c; }
+        .non-emergency-example { background: #fff4e5; border-left-color: #f39c12; }
+        .scenario-btn {
+            width: 100%;
+            padding: 18px;
+            margin-bottom: 12px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: left;
+            color: #2c3e50;
+            transition: all 0.3s;
+        }
+        .scenario-btn:hover { border-color: #3498db; transform: translateX(5px); }
         .chat-messages {
             height: 400px;
             overflow-y: auto;
+            padding: 20px;
             background: #f8f9fa;
             border-radius: 12px;
-            padding: 20px;
             margin-bottom: 20px;
         }
         .message {
@@ -85,19 +113,18 @@
             padding: 12px 16px;
             border-radius: 12px;
             font-size: 15px;
+            line-height: 1.4;
         }
         .operator .message-content { background: white; color: #2c3e50; }
         .user .message-content { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
-        .input-area {
-            display: flex;
-            gap: 10px;
-        }
+        .input-area { display: flex; gap: 10px; }
         .input-area input {
             flex: 1;
             padding: 15px;
             border: 2px solid #e0e0e0;
             border-radius: 25px;
             font-size: 15px;
+            outline: none;
         }
         .send-btn {
             padding: 15px 25px;
@@ -105,9 +132,79 @@
             color: white;
             border: none;
             border-radius: 25px;
+            font-weight: 600;
             cursor: pointer;
         }
-    </style>
+        .back-btn {
+            width: 100%;
+            padding: 15px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .feedback {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+        }
+        .feedback.show { display: block; }
+        .feedback h3 { margin-bottom: 10px; }
+
+```
+    /* Voice Call Styles */
+    .voice-call-container { max-width: 400px; margin: 0 auto; text-align: center; }
+    .call-avatar {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 60px;
+    }
+    .call-name { font-size: 28px; color: #2c3e50; margin-bottom: 10px; }
+    .call-status { font-size: 16px; color: #7f8c8d; margin-bottom: 30px; }
+    .call-transcript {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+        min-height: 200px;
+        max-height: 300px;
+        overflow-y: auto;
+        text-align: left;
+    }
+    .transcript-message {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 8px;
+        line-height: 1.6;
+    }
+    .operator-voice { background: white; border-left: 4px solid #e74c3c; }
+    .user-voice { background: #e3f2fd; border-left: 4px solid #3498db; }
+    .transcript-message strong { display: block; margin-bottom: 5px; }
+    .always-listening { 
+        padding: 20px;
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        border-radius: 50px;
+        color: white;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    .user-speech { color: #3498db; font-size: 16px; margin-top: 10px; min-height: 20px; }
+</style>
+```
+
 </head>
 <body>
     <div class="container">
@@ -118,111 +215,634 @@
 
 ```
     <!-- Main Menu -->
-    <div id="mainMenu" class="screen active">
-        <button class="mode-btn" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="showChat()">
-            <span>💬</span>
-            <span>Practice 911 Call</span>
+    <div class="mode-selection active" id="mainMenu">
+        <button class="mode-btn" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="app.showLesson()">
+            <span class="icon">📚</span>
+            <span>Learn About 911</span>
         </button>
-        <button class="mode-btn" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="alert('Voice features require opening this file in Safari browser (not Claude app). Download the file and open it in Safari!')">
-            <span>📞</span>
-            <span>Voice Call (Safari Only)</span>
+        <button class="mode-btn" style="background: linear-gradient(135deg, #2ecc71, #27ae60);" onclick="app.showScenarios()">
+            <span class="icon">🎭</span>
+            <span>Practice Scenarios</span>
+        </button>
+        <button class="mode-btn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);" onclick="app.startFreeChat()">
+            <span class="icon">💬</span>
+            <span>Free Practice Call</span>
+        </button>
+        <button class="mode-btn" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="app.startVoiceCall()">
+            <span class="icon">📞</span>
+            <span>Voice Call Practice</span>
         </button>
     </div>
     
-    <!-- Chat Screen -->
-    <div id="chatScreen" class="screen">
-        <div class="chat-messages" id="messages"></div>
-        <div class="input-area">
-            <input type="text" id="userInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMsg()">
-            <button class="send-btn" onclick="sendMsg()">Send</button>
+    <!-- Lesson Screen -->
+    <div class="lesson-content" id="lessonScreen">
+        <div class="lesson-card">
+            <h3>What is 911?</h3>
+            <p>911 is a special phone number for EMERGENCIES ONLY. When you call 911, you'll talk to a trained operator who will send help right away.</p>
         </div>
-        <button class="back-btn" onclick="goHome()">Back to Menu</button>
+        <div class="lesson-card emergency-example">
+            <h3>✅ When to Call 911</h3>
+            <p>Call 911 when someone needs help RIGHT NOW:</p>
+            <ul>
+                <li>Someone is hurt badly and bleeding a lot</li>
+                <li>Someone can't breathe or is having trouble breathing</li>
+                <li>There's a fire in your home</li>
+                <li>Someone is breaking into your house</li>
+                <li>You see a serious car accident</li>
+            </ul>
+        </div>
+        <div class="lesson-card non-emergency-example">
+            <h3>❌ When NOT to Call 911</h3>
+            <p>Don't call 911 for things that aren't emergencies:</p>
+            <ul>
+                <li>You lost your toy or pet</li>
+                <li>You want to ask a question</li>
+                <li>You have a small cut or scrape</li>
+                <li>You're bored or want to talk</li>
+                <li>Your homework is too hard</li>
+            </ul>
+        </div>
+        <button class="back-btn" onclick="app.showMain()">Back to Main Menu</button>
+    </div>
+    
+    <!-- Scenarios Screen -->
+    <div class="scenario-selection" id="scenariosScreen">
+        <h2 style="margin-bottom: 20px; color: #2c3e50;">Choose a Scenario</h2>
+        <button class="scenario-btn" onclick="app.startScenario('fire')">🔥 House Fire Emergency</button>
+        <button class="scenario-btn" onclick="app.startScenario('injury')">🤕 Someone is Hurt</button>
+        <button class="scenario-btn" onclick="app.startScenario('non-emergency')">🐕 Lost Pet (Not an Emergency)</button>
+        <button class="scenario-btn" onclick="app.startScenario('breathing')">😰 Trouble Breathing</button>
+        <button class="scenario-btn" onclick="app.startScenario('stranger')">🚨 Stranger Danger</button>
+        <button class="back-btn" onclick="app.showMain()">Back to Main Menu</button>
+    </div>
+    
+    <!-- Chat Screen -->
+    <div class="chat-interface" id="chatScreen">
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter') app.sendMessage()">
+            <button class="send-btn" id="sendBtn" onclick="app.sendMessage()">Send</button>
+        </div>
+        <div class="feedback" id="feedback">
+            <h3>📝 Feedback</h3>
+            <p id="feedbackText"></p>
+        </div>
+        <button class="back-btn" onclick="app.endCall()">End Call</button>
+    </div>
+    
+    <!-- Voice Call Screen -->
+    <div class="voice-call-interface" id="voiceScreen">
+        <div class="voice-call-container">
+            <div class="call-avatar">👮</div>
+            <h2 class="call-name">911 Operator</h2>
+            <p class="call-status" id="voiceStatus">Connecting...</p>
+            <div class="call-transcript" id="voiceTranscript">
+                <div class="transcript-message operator-voice">
+                    <strong>Operator:</strong> <span>911, what's your emergency?</span>
+                </div>
+            </div>
+            <div class="always-listening">🎤 Always Listening - Just Speak!</div>
+            <p class="user-speech" id="userSpeech"></p>
+            <button class="back-btn" onclick="app.endVoiceCall()">End Call</button>
+        </div>
     </div>
 </div>
 
 <script>
-    let messages = [];
-    let messageCount = 0;
-    
-    function showChat() {
-        document.getElementById('mainMenu').classList.remove('active');
-        document.getElementById('chatScreen').classList.add('active');
-        addOperatorMsg("911, what's your emergency?");
-    }
-    
-    function goHome() {
-        document.getElementById('chatScreen').classList.remove('active');
-        document.getElementById('mainMenu').classList.add('active');
-        document.getElementById('messages').innerHTML = '';
-        messages = [];
-        messageCount = 0;
-    }
-    
-    function addOperatorMsg(text) {
-        const msg = document.createElement('div');
-        msg.className = 'message operator';
-        msg.innerHTML = `
-            <div class="message-avatar">👮</div>
-            <div class="message-content">${text}</div>
-        `;
-        document.getElementById('messages').appendChild(msg);
-        document.getElementById('messages').scrollTop = 999999;
-    }
-    
-    function addUserMsg(text) {
-        const msg = document.createElement('div');
-        msg.className = 'message user';
-        msg.innerHTML = `
-            <div class="message-avatar">🧒</div>
-            <div class="message-content">${text}</div>
-        `;
-        document.getElementById('messages').appendChild(msg);
-        document.getElementById('messages').scrollTop = 999999;
-    }
-    
-    function sendMsg() {
-        const input = document.getElementById('userInput');
-        const text = input.value.trim();
-        if (!text) return;
+    const app = {
+        currentMode: null,
+        conversation: [],
+        context: {},
+        callEnded: false,
+        recognition: null,
+        synthesis: window.speechSynthesis,
+        voiceActive: false,
+        messageCount: 0,
         
-        addUserMsg(text);
-        input.value = '';
-        messages.push(text.toLowerCase());
-        messageCount++;
+        scenarios: {
+            'fire': { isEmergency: true, tips: 'Great job! In a fire: 1) Get out first, 2) Call from outside, 3) Never go back in.' },
+            'injury': { isEmergency: true, tips: 'Excellent! For injuries: 1) Stay calm, 2) Don\'t move them, 3) Wait for help.' },
+            'non-emergency': { isEmergency: false, tips: 'Good! This isn\'t 911. Tell parents or call animal control.' },
+            'breathing': { isEmergency: true, tips: 'Perfect! Breathing problems are always emergencies.' },
+            'stranger': { isEmergency: true, tips: 'Excellent! If someone\'s breaking in: 1) Hide safely, 2) Call 911 quietly, 3) Don\'t confront them.' }
+        },
         
-        setTimeout(() => {
-            const response = getResponse(text.toLowerCase());
-            addOperatorMsg(response);
-        }, 800);
-    }
-    
-    function getResponse(userMsg) {
-        // Check for emergency keywords
-        const isEmergency = ['fire', 'hurt', 'bleeding', 'emergency', 'help', 'injured', 'accident', 'breathing'].some(word => userMsg.includes(word));
-        const isNonEmergency = ['pizza', 'food', 'homework', 'pet', 'lost', 'bored'].some(word => userMsg.includes(word));
+        showMain() {
+            document.querySelectorAll('.mode-selection, .lesson-content, .chat-interface, .scenario-selection, .voice-call-interface').forEach(el => el.classList.remove('active'));
+            document.getElementById('mainMenu').classList.add('active');
+        },
         
-        if (messageCount === 1) {
-            if (isEmergency) {
-                return "Okay, I understand. Where are you? What's your address?";
-            } else if (isNonEmergency) {
-                return "I understand, but 911 is for emergencies only. Is anyone hurt or in danger right now?";
-            } else {
-                return "Can you tell me what's happening? Is someone hurt?";
+        showLesson() {
+            this.hideAll();
+            document.getElementById('lessonScreen').classList.add('active');
+        },
+        
+        showScenarios() {
+            this.hideAll();
+            document.getElementById('scenariosScreen').classList.add('active');
+        },
+        
+        hideAll() {
+            document.querySelectorAll('.mode-selection, .lesson-content, .chat-interface, .scenario-selection, .voice-call-interface').forEach(el => el.classList.remove('active'));
+        },
+        
+        startScenario(type) {
+            this.currentMode = type;
+            this.resetChat();
+            this.hideAll();
+            document.getElementById('chatScreen').classList.add('active');
+            this.addOperatorMessage("911, what's your emergency?");
+        },
+        
+        startFreeChat() {
+            this.currentMode = 'free';
+            this.resetChat();
+            this.hideAll();
+            document.getElementById('chatScreen').classList.add('active');
+            this.addOperatorMessage("911, what's your emergency?");
+        },
+        
+        resetChat() {
+            this.conversation = [];
+            this.context = { 
+                hasLocation: false, 
+                knowsIssue: false, 
+                confirmedEmergency: null, 
+                redirectAttempts: 0,
+                issueType: null,
+                userName: false,
+                seemsScared: false,
+                seemsUnsure: false,
+                mentionedParent: false,
+                readyToEnd: false
+            };
+            this.callEnded = false;
+            this.messageCount = 0;
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('feedback').classList.remove('show');
+        },
+        
+        addOperatorMessage(text) {
+            const msg = document.createElement('div');
+            msg.className = 'message operator';
+            msg.innerHTML = `<div class="message-avatar">👮</div><div class="message-content">${text}</div>`;
+            document.getElementById('chatMessages').appendChild(msg);
+            document.getElementById('chatMessages').scrollTop = 999999;
+        },
+        
+        addUserMessage(text) {
+            const msg = document.createElement('div');
+            msg.className = 'message user';
+            msg.innerHTML = `<div class="message-avatar">🧒</div><div class="message-content">${text}</div>`;
+            document.getElementById('chatMessages').appendChild(msg);
+            document.getElementById('chatMessages').scrollTop = 999999;
+        },
+        
+        sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text || this.callEnded) return;
+            
+            this.addUserMessage(text);
+            this.conversation.push({ role: 'user', content: text });
+            this.messageCount++;
+            input.value = '';
+            
+            setTimeout(() => {
+                const response = this.getResponse(text.toLowerCase());
+                this.addOperatorMessage(response);
+            }, 800);
+        },
+        
+        getResponse(userMsg) {
+            const scaredWords = ['scared', 'help', 'please', 'hurry', 'quick', 'fast', 'afraid'];
+            const unsureWords = ['um', 'uh', 'i think', 'maybe', 'i don\'t know'];
+            
+            if (scaredWords.some(word => userMsg.includes(word))) {
+                this.context.seemsScared = true;
             }
-        } else if (messageCount === 2) {
-            if (isEmergency || userMsg.includes('yes')) {
-                return "Help is on the way. Stay calm and stay where you are. You're doing great.";
-            } else if (userMsg.includes('no') || isNonEmergency) {
-                return "Then 911 isn't the right number to call. Talk to your parents about this instead. Goodbye.";
-            } else {
-                return "I need to know if this is an emergency. Is someone hurt or in danger?";
+            if (unsureWords.some(word => userMsg.includes(word))) {
+                this.context.seemsUnsure = true;
             }
-        } else {
-            return "Emergency services are coming. You did the right thing by calling 911.";
+            
+            const emergencyTypes = {
+                fire: ['fire', 'burning', 'smoke', 'flames', 'burnt'],
+                injury: ['hurt', 'bleeding', 'blood', 'fell', 'injured', 'broken', 'cut', 'pain', 'wound'],
+                breathing: ['breathe', 'breathing', 'choking', 'choke', 'air', 'can\'t breathe'],
+                crime: ['break in', 'breaking in', 'stranger', 'robber', 'theft', 'attack', 'someone here', 'intruder'],
+                medical: ['sick', 'chest', 'heart', 'seizure', 'unconscious', 'passed out', 'fainted', 'dizzy', 'throwing up']
+            };
+            
+            const minorIssues = ['pizza', 'food', 'hungry', 'order', 'homework', 'lost pet', 'dog ran', 'cat missing', 'toy', 'bored', 'lonely', 'netflix', 'tv', 'game', 'scared of dark', 'nightmare', 'can\'t sleep'];
+            
+            if (userMsg.includes('mom') || userMsg.includes('dad') || userMsg.includes('parent') || userMsg.includes('adult')) {
+                this.context.mentionedParent = true;
+            }
+            
+            const namePatterns = ['my name is', 'i\'m ', 'im ', 'this is ', 'call me', 'i am '];
+            if (!this.context.userName && namePatterns.some(pattern => userMsg.includes(pattern))) {
+                this.context.userName = true;
+            }
+            
+            if (!this.context.issueType) {
+                for (const [type, keywords] of Object.entries(emergencyTypes)) {
+                    if (keywords.some(keyword => userMsg.includes(keyword))) {
+                        this.context.issueType = type;
+                        this.context.confirmedEmergency = true;
+                        this.context.knowsIssue = true;
+                        break;
+                    }
+                }
+            }
+            
+            const locationWords = ['street', 'avenue', 'road', 'drive', 'lane', 'boulevard', 'house', 'home', 'school', 'park', 'store', 'apartment', 'building'];
+            const hasNumber = /\d+/.test(userMsg);
+            if ((hasNumber && locationWords.some(word => userMsg.includes(word))) || 
+                userMsg.includes('at ') || 
+                userMsg.includes('address')) {
+                this.context.hasLocation = true;
+            }
+            
+            // ==================== MESSAGE 1 ====================
+            if (this.messageCount === 1) {
+                if (userMsg.match(/^(hi|hello|hey|um|uh|help)$/)) {
+                    return "Hi there. It's okay, I'm here to help. Can you tell me what's going on?";
+                }
+                
+                if (this.context.userName && !this.context.knowsIssue) {
+                    return "Okay, thank you. Now can you tell me why you're calling? What's happening?";
+                }
+                
+                if (this.context.issueType && this.context.confirmedEmergency) {
+                    if (this.context.seemsScared) {
+                        if (this.context.issueType === 'fire') {
+                            return "There's a fire? Okay, I need you to stay calm. Are you outside the house right now?";
+                        } else if (this.context.issueType === 'injury') {
+                            return "Someone's hurt? Alright, I'm here to help. First, are YOU okay? Are you hurt too?";
+                        } else if (this.context.issueType === 'breathing') {
+                            return "They're having trouble breathing? Okay, stay with me. Are they awake? Can they hear you?";
+                        } else if (this.context.issueType === 'crime') {
+                            return "There's someone there who shouldn't be? Are you somewhere safe right now? Are you hidden?";
+                        } else {
+                            return "I understand. You're doing great by calling. Are you safe right now?";
+                        }
+                    } else {
+                        if (this.context.issueType === 'fire') {
+                            return "Okay, there's a fire. Where is the fire? Is everyone out of the building?";
+                        } else if (this.context.issueType === 'injury') {
+                            return "Someone is hurt. Can you tell me who's hurt and what happened?";
+                        } else {
+                            return "I hear you. Tell me where you are so I can send help right away.";
+                        }
+                    }
+                }
+                
+                if (minorIssues.some(word => userMsg.includes(word))) {
+                    if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry')) {
+                        return "I understand you're hungry. But 911 is for emergencies, like if someone is really hurt. Is anyone hurt or in danger at your house right now?";
+                    } else if (userMsg.includes('pet')) {
+                        return "Your pet is missing? I know that's really upsetting. But let me ask you - is anyone hurt? Is there any danger happening right now?";
+                    } else if (userMsg.includes('nightmare') || userMsg.includes('scared of dark')) {
+                        return "You're scared? That's okay, everyone gets scared sometimes. But 911 is for emergencies. Is there something dangerous happening? Is someone trying to hurt you?";
+                    } else if (userMsg.includes('homework')) {
+                        return "Homework can be tough! But 911 is for emergencies only. Let me check - is anyone hurt or sick at home? Is there any emergency?";
+                    } else {
+                        return "I hear you. But 911 is for really serious emergencies. Can you tell me - is anyone hurt? Is there a fire? Is something dangerous happening?";
+                    }
+                }
+                
+                this.context.seemsUnsure = true;
+                return "It's okay, take a breath. You can tell me. What made you want to call 911? Is something wrong?";
+            }
+            
+            // ==================== MESSAGE 2 ====================
+            else if (this.messageCount === 2) {
+                if (this.context.confirmedEmergency === null && this.context.issueType) {
+                    this.context.confirmedEmergency = true;
+                    return "Okay, that IS an emergency. I'm going to help you. Where are you right now? Can you tell me your address or what place you're at?";
+                }
+                
+                if (userMsg.includes('yes') || userMsg.includes('yeah')) {
+                    if (!this.context.knowsIssue) {
+                        return "Alright. Tell me what's happening. Is someone hurt? Is there a fire? What's the emergency?";
+                    } else if (this.context.confirmedEmergency && !this.context.hasLocation) {
+                        return "Good. Now I need to know where you are. What's your address? What street do you live on?";
+                    }
+                }
+                
+                if (userMsg.includes('no') || userMsg.includes('nope')) {
+                    if (!this.context.confirmedEmergency && this.context.redirectAttempts === 0) {
+                        this.context.redirectAttempts++;
+                        return "Okay, so nobody is hurt and there's no emergency. Can you tell me why you called 911 today?";
+                    }
+                }
+                
+                if (this.context.issueType && this.context.confirmedEmergency) {
+                    if (this.context.issueType === 'fire') {
+                        return "A fire - okay. Are you and everyone else outside and safe? Where is your house?";
+                    } else if (this.context.issueType === 'injury') {
+                        return "They're hurt. Is it bad? Are they bleeding a lot? Where are you?";
+                    } else if (this.context.issueType === 'breathing') {
+                        return "Trouble breathing is serious. Is their face turning blue? Do you know your address?";
+                    } else {
+                        return "I understand. I'm going to send help. What's your address? Or are you at home, school, or somewhere else?";
+                    }
+                }
+                
+                if (this.context.hasLocation && !this.context.knowsIssue) {
+                    return "Okay, I've got your location. Now help me understand what's happening. Is someone hurt? Did something happen?";
+                }
+                
+                if (!this.context.knowsIssue && !this.context.hasLocation) {
+                    return "I'm listening. You can tell me anything. Is this about someone being hurt? Or a fire? Or something else?";
+                }
+                
+                if (!this.context.knowsIssue && minorIssues.some(word => userMsg.includes(word))) {
+                    this.context.redirectAttempts++;
+                    return "I see. That's not what 911 is for. 911 is only for big emergencies - like if someone can't breathe, or there's a fire, or someone is really hurt. Is your mom or dad home? Can you talk to them about this?";
+                }
+                
+                return "Tell me more. What exactly is happening right now?";
+            }
+            
+            // ==================== MESSAGE 3 ====================
+            else if (this.messageCount === 3) {
+                if (this.context.confirmedEmergency && this.context.knowsIssue) {
+                    if (this.context.hasLocation) {
+                        if (this.context.issueType === 'fire') {
+                            return "Okay. Help is coming right now - fire trucks are on the way. Stay outside and stay away from the building. Are you with other people?";
+                        } else if (this.context.issueType === 'injury') {
+                            return "An ambulance is coming to you right now. Don't try to move the person who's hurt. Can you stay with them?";
+                        } else if (this.context.issueType === 'breathing') {
+                            return "Paramedics are coming as fast as they can. If they can sit up, try to help them sit up. Help will be there soon.";
+                        } else if (this.context.issueType === 'crime') {
+                            return "Police are on their way right now. Stay hidden and stay quiet. Keep this phone with you.";
+                        } else {
+                            return "Help is on the way to you. You did exactly the right thing by calling 911.";
+                        }
+                    } else {
+                        return "I need your location to send help. Can you look outside and see a street sign? Or tell me if you're at home, at school, or somewhere else?";
+                    }
+                }
+                
+                if (!this.context.knowsIssue && this.context.redirectAttempts < 2) {
+                    this.context.redirectAttempts++;
+                    return "I'm trying to understand so I can help you. Is anyone having trouble breathing? Is anyone bleeding? Is there a fire you can see?";
+                }
+                
+                if (this.context.confirmedEmergency === false && this.context.redirectAttempts >= 2) {
+                    this.context.redirectAttempts++;
+                    if (this.context.mentionedParent) {
+                        return "So this isn't an emergency, which is good - everyone's safe! For things like this, you should talk to your parents instead of calling 911. Are they home right now?";
+                    } else {
+                        return "I understand now. This isn't a 911 emergency, which means everyone is safe - that's good! 911 is only for when someone needs help RIGHT NOW. For other stuff, you should talk to your parents. Is there a grown-up at home with you?";
+                    }
+                }
+                
+                return "Let's try this - can you tell me in one sentence what's wrong? Like 'my brother fell' or 'there's smoke'?";
+            }
+            
+            // ==================== MESSAGE 4 ====================
+            else if (this.messageCount === 4) {
+                if (this.context.confirmedEmergency && this.context.hasLocation && this.context.knowsIssue) {
+                    return "You're doing great. The emergency responders will be there very soon. Just stay where you are.";
+                }
+                
+                if (this.context.confirmedEmergency && !this.context.hasLocation) {
+                    return "I'm sending help to find you. Emergency services are on their way. Do you see any landmarks or signs nearby?";
+                }
+                
+                if (this.context.confirmedEmergency === false || this.context.redirectAttempts >= 3) {
+                    this.context.readyToEnd = true;
+                    return "Alright. Remember, only call 911 if someone is hurt, can't breathe, there's a fire, or something really dangerous. For everything else, talk to your parents. Okay?";
+                }
+                
+                return "Help me out here. Just tell me yes or no: Is this a real emergency where someone needs help right now?";
+            }
+            
+            // ==================== MESSAGE 5 ====================
+            else if (this.messageCount === 5) {
+                if (this.context.confirmedEmergency && this.context.knowsIssue) {
+                    return "Help should be arriving now. You did everything right. Stay safe.";
+                }
+                
+                if (this.context.readyToEnd || this.context.redirectAttempts >= 3) {
+                    return "I have to go now. Take care, and talk to your parents about this. Okay?";
+                }
+                
+                return "Is there anything else I should know about this situation?";
+            }
+            
+            // ==================== MESSAGE 6 ====================
+            else if (this.messageCount >= 6) {
+                if (this.context.readyToEnd || this.context.redirectAttempts >= 3 || this.context.confirmedEmergency === false) {
+                    setTimeout(() => this.showFeedback(), 2000);
+                    return "Alright. Be safe. Goodbye.";
+                }
+                
+                if (this.context.confirmedEmergency && this.context.knowsIssue) {
+                    setTimeout(() => this.showFeedback(), 2000);
+                    return "Help is there now. You did great. Everything will be okay.";
+                }
+                
+                setTimeout(() => this.showFeedback(), 2000);
+                return "Okay, I understand. Take care.";
+            }
+            
+            return "Okay, stay on the line.";
+        },
+        
+        showFeedback() {
+            let text = 'Great practice! Remember: 911 is ONLY for real emergencies.';
+            if (this.context.confirmedEmergency && this.context.hasLocation && this.context.knowsIssue) {
+                text = '✅ EXCELLENT! You explained the emergency clearly AND gave your location. Perfect 911 call!';
+            } else if (this.context.confirmedEmergency && this.context.knowsIssue) {
+                text = '👍 Good job! You explained the emergency but try to remember to give your ADDRESS next time so help can find you.';
+            } else if (this.context.confirmedEmergency === false) {
+                text = '✅ Good thinking! You learned that this wasn\'t a 911 emergency. Remember: 911 is ONLY for when someone is hurt, can\'t breathe, there\'s a fire, or something dangerous.';
+            } else {
+                text = '📝 Nice try! Remember to clearly explain WHAT the emergency is and WHERE you are. Practice makes perfect!';
+            }
+            
+            if (this.currentMode !== 'free' && this.scenarios[this.currentMode]) {
+                text += '\n\n' + this.scenarios[this.currentMode].tips;
+            }
+            
+            document.getElementById('feedbackText').textContent = text;
+            document.getElementById('feedback').classList.add('show');
+            this.callEnded = true;
+        },
+        
+        endCall() {
+            if (!this.callEnded) this.showFeedback();
+            setTimeout(() => {
+                if (this.currentMode === 'free') {
+                    this.showMain();
+                } else {
+                    this.showScenarios();
+                }
+            }, 3000);
+        },
+        
+        // Voice Call Functions
+        startVoiceCall() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert('Voice recognition is not supported in this browser. Please use Safari or Chrome on a real device (not the Claude app).');
+                return;
+            }
+            
+            this.voiceActive = true;
+            this.resetChat();
+            this.hideAll();
+            document.getElementById('voiceScreen').classList.add('active');
+            document.getElementById('voiceTranscript').innerHTML = '<div class="transcript-message operator-voice"><strong>Operator:</strong> <span>911, what\'s your emergency?</span></div>';
+            document.getElementById('voiceStatus').textContent = 'Connected';
+            
+            setTimeout(() => {
+                this.speak("911, what's your emergency?", () => {
+                    setTimeout(() => this.initMic(), 800);
+                });
+            }, 1000);
+        },
+        
+        initMic() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = false;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+            
+            this.recognition.onstart = () => {
+                console.log('🎤 Microphone started');
+                document.getElementById('voiceStatus').textContent = '🎤 Listening...';
+            };
+            
+            this.recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('userSpeech').textContent = transcript;
+                
+                if (event.results[event.results.length - 1].isFinal) {
+                    console.log('📝 Final transcript:', transcript);
+                    this.recognition.stop();
+                    this.processVoice(transcript);
+                }
+            };
+            
+            this.recognition.onerror = (e) => {
+                console.error('❌ Speech error:', e.error);
+                if (e.error === 'not-allowed') {
+                    alert('Microphone access denied. Please:\n1. Make sure you\'re in Safari (not Claude app)\n2. Allow microphone access when prompted\n3. Check your phone/browser settings');
+                    this.endVoiceCall();
+                } else if (e.error === 'no-speech') {
+                    console.log('No speech detected, restarting...');
+                }
+            };
+            
+            this.recognition.onend = () => {
+                console.log('👂 Recognition ended');
+                if (this.voiceActive && !this.synthesis.speaking) {
+                    setTimeout(() => {
+                        if (this.voiceActive) {
+                            console.log('🔄 Restarting recognition...');
+                            try {
+                                this.recognition.start();
+                            } catch (e) {
+                                console.log('Recognition restart skipped (already running)');
+                            }
+                        }
+                    }, 300);
+                }
+            };
+            
+            try {
+                this.recognition.start();
+            } catch (e) {
+                console.error('Failed to start recognition:', e);
+            }
+        },
+        
+        processVoice(text) {
+            document.getElementById('userSpeech').textContent = '';
+            
+            const div = document.createElement('div');
+            div.className = 'transcript-message user-voice';
+            div.innerHTML = `<strong>You:</strong> <span>${text}</span>`;
+            document.getElementById('voiceTranscript').appendChild(div);
+            document.getElementById('voiceTranscript').scrollTop = 999999;
+            
+            this.conversation.push({ role: 'user', content: text });
+            this.messageCount++;
+            const response = this.getResponse(text.toLowerCase());
+            
+            const respDiv = document.createElement('div');
+            respDiv.className = 'transcript-message operator-voice';
+            respDiv.innerHTML = `<strong>Operator:</strong> <span>${response}</span>`;
+            document.getElementById('voiceTranscript').appendChild(respDiv);
+            document.getElementById('voiceTranscript').scrollTop = 999999;
+            
+            this.speak(response, () => {
+                setTimeout(() => {
+                    if (this.voiceActive) {
+                        try {
+                            this.recognition.start();
+                        } catch (e) {
+                            console.log('Recognition restart skipped');
+                        }
+                    }
+                }, 500);
+            });
+        },
+        
+        speak(text, callback) {
+            this.synthesis.cancel();
+            
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.9;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
+                
+                utterance.onstart = () => {
+                    console.log('🔊 Speaking:', text.substring(0, 50));
+                    document.getElementById('voiceStatus').textContent = 'Operator speaking...';
+                };
+                
+                utterance.onend = () => {
+                    console.log('✅ Speech finished');
+                    document.getElementById('voiceStatus').textContent = '🎤 Listening...';
+                    if (callback) callback();
+                };
+                
+                utterance.onerror = (e) => {
+                    console.error('Speech error:', e);
+                    if (callback) callback();
+                };
+                
+                this.synthesis.speak(utterance);
+            }, 100);
+        },
+        
+        endVoiceCall() {
+            this.voiceActive = false;
+            if (this.recognition) {
+                try {
+                    this.recognition.stop();
+                } catch (e) {}
+            }
+            this.synthesis.cancel();
+            
+            if (this.messageCount > 0) {
+                alert('Good practice! Remember: 911 is for real emergencies only.');
+            }
+            this.showMain();
         }
-    }
+    };
     
-    console.log('✅ App loaded successfully!');
+    console.log('✅ 911 Training App loaded successfully!');
 </script>
 ```
 
