@@ -303,6 +303,12 @@
             </div>
             <div class="always-listening">🎤 Always Listening - Just Speak!</div>
             <p class="user-speech" id="userSpeech"></p>
+            <p style="font-size: 12px; color: #95a5a6; margin-top: 10px;">
+                ⚠️ Can't hear the operator? Make sure:<br>
+                • Your phone is NOT on silent mode<br>
+                • Volume is turned UP<br>
+                • You're in Safari browser, not Claude app
+            </p>
             <button class="back-btn" onclick="app.endVoiceCall()">End Call</button>
         </div>
     </div>
@@ -693,6 +699,13 @@
                 return;
             }
             
+            // IMPORTANT: Initialize speech synthesis with user interaction
+            const testVoice = () => {
+                const utterance = new SpeechSynthesisUtterance('');
+                this.synthesis.speak(utterance);
+            };
+            testVoice();
+            
             // Request microphone permission first
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
@@ -704,13 +717,31 @@
                     this.hideAll();
                     document.getElementById('voiceScreen').classList.add('active');
                     document.getElementById('voiceTranscript').innerHTML = '<div class="transcript-message operator-voice"><strong>Operator:</strong> <span>911, what\'s your emergency?</span></div>';
-                    document.getElementById('voiceStatus').textContent = 'Connected';
+                    document.getElementById('voiceStatus').textContent = 'Initializing...';
                     
-                    setTimeout(() => {
+                    // Make sure voices are loaded before speaking
+                    const startSequence = () => {
+                        console.log('🎬 Starting call sequence');
                         this.speak("911, what's your emergency?", () => {
-                            setTimeout(() => this.initMic(), 800);
+                            console.log('🎤 Greeting complete, starting microphone in 1 second...');
+                            setTimeout(() => this.initMic(), 1000);
                         });
-                    }, 1000);
+                    };
+                    
+                    // Wait for voices
+                    const voices = this.synthesis.getVoices();
+                    if (voices.length > 0) {
+                        console.log('✅ Voices already loaded');
+                        setTimeout(startSequence, 500);
+                    } else {
+                        console.log('⏳ Waiting for voices...');
+                        this.synthesis.onvoiceschanged = () => {
+                            console.log('✅ Voices loaded!');
+                            startSequence();
+                        };
+                        // Fallback: start anyway after 2 seconds
+                        setTimeout(startSequence, 2000);
+                    }
                 })
                 .catch(err => {
                     console.error('❌ Microphone permission denied:', err);
@@ -839,32 +870,77 @@
         },
         
         speak(text, callback) {
+            console.log('🔊 Attempting to speak:', text.substring(0, 50));
             this.synthesis.cancel();
             
-            setTimeout(() => {
+            // Wait for voices to load
+            const speakNow = () => {
+                const voices = this.synthesis.getVoices();
+                console.log('Available voices:', voices.length);
+                
                 const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Try to select a female voice
+                const femaleVoice = voices.find(v => 
+                    v.name.includes('Samantha') || 
+                    v.name.includes('Karen') || 
+                    v.name.includes('Moira') ||
+                    v.name.includes('Female') ||
+                    v.lang.startsWith('en')
+                );
+                
+                if (femaleVoice) {
+                    console.log('Using voice:', femaleVoice.name);
+                    utterance.voice = femaleVoice;
+                }
+                
                 utterance.rate = 0.9;
-                utterance.pitch = 1.0;
+                utterance.pitch = 1.1;
                 utterance.volume = 1.0;
+                utterance.lang = 'en-US';
                 
                 utterance.onstart = () => {
-                    console.log('🔊 Speaking:', text.substring(0, 50));
-                    document.getElementById('voiceStatus').textContent = 'Operator speaking...';
+                    console.log('✅ Speech STARTED');
+                    document.getElementById('voiceStatus').textContent = '🗣️ Operator speaking...';
+                    document.getElementById('voiceStatus').style.color = '#e74c3c';
                 };
                 
                 utterance.onend = () => {
-                    console.log('✅ Speech finished');
-                    document.getElementById('voiceStatus').textContent = '🎤 Listening...';
+                    console.log('✅ Speech FINISHED');
+                    document.getElementById('voiceStatus').textContent = '🎤 Your turn - speak now!';
+                    document.getElementById('voiceStatus').style.color = '#2ecc71';
                     if (callback) callback();
                 };
                 
                 utterance.onerror = (e) => {
-                    console.error('Speech error:', e);
+                    console.error('❌ Speech error:', e);
+                    document.getElementById('voiceStatus').textContent = '⚠️ Audio error';
                     if (callback) callback();
                 };
                 
+                console.log('🚀 Starting speech...');
                 this.synthesis.speak(utterance);
-            }, 100);
+                
+                // Force playback on iOS
+                setTimeout(() => {
+                    if (this.synthesis.paused) {
+                        console.log('⚠️ Speech paused, resuming...');
+                        this.synthesis.resume();
+                    }
+                }, 100);
+            };
+            
+            // Check if voices are loaded
+            const voices = this.synthesis.getVoices();
+            if (voices.length === 0) {
+                console.log('⏳ Waiting for voices to load...');
+                this.synthesis.onvoiceschanged = () => {
+                    console.log('✅ Voices loaded!');
+                    speakNow();
+                };
+            } else {
+                speakNow();
+            }
         },
         
         endVoiceCall() {
