@@ -1161,16 +1161,17 @@
     }
     
     function processUserSpeech(transcript) {
-        console.log('Processing user speech:', transcript);
+        console.log('📝 Processing user speech:', transcript);
         
         // Stop recognition while operator responds
-        recognition.stop();
+        if (recognition) {
+            recognition.stop();
+        }
         
         // Display what user said
         document.getElementById('userSpeech').textContent = transcript;
         document.getElementById('callStatus').textContent = 'Processing...';
         document.getElementById('listeningText').style.display = 'none';
-        document.getElementById('micBtn').classList.remove('listening');
         
         // Add to transcript
         const transcriptDiv = document.getElementById('callTranscript');
@@ -1182,10 +1183,13 @@
         
         // Add to conversation history
         conversationHistory.push({ role: 'user', content: transcript });
+        console.log('💬 Conversation history:', conversationHistory.length, 'messages');
         
         // Get operator response
         setTimeout(() => {
+            console.log('🤖 Getting operator response...');
             const response = getRuleBasedResponse();
+            console.log('✅ Operator response:', response);
             
             // Add to transcript
             const operatorMsg = document.createElement('div');
@@ -1197,12 +1201,25 @@
             document.getElementById('operatorText').textContent = response;
             
             // Speak response, then restart listening
+            console.log('🔊 Speaking operator response...');
             speakOperatorMessage(response, () => {
+                console.log('✅ Operator finished speaking');
                 // Restart listening after operator finishes
                 setTimeout(() => {
                     if (!callEnded && voiceCallActive) {
+                        console.log('🔄 Restarting microphone...');
                         document.getElementById('userSpeech').textContent = '';
-                        recognition.start();
+                        try {
+                            recognition.start();
+                            console.log('✅ Microphone restarted');
+                        } catch (e) {
+                            console.error('❌ Failed to restart microphone:', e);
+                        }
+                    }
+                }, 500);
+            });
+        }, 800);
+    }
                     }
                 }, 500);
             });
