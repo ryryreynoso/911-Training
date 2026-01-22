@@ -425,6 +425,74 @@
         },
         
         getResponse(userMsg) {
+            console.log('📞 Processing message:', userMsg);
+            
+            // ============== EMERGENCY KEYWORDS ==============
+            const emergencyKeywords = {
+                fire: ['fire', 'burning', 'smoke', 'flames', 'burnt'],
+                injury: ['hurt', 'bleeding', 'blood', 'fell', 'injured', 'broken', 'cut', 'pain', 'wound', 'accident'],
+                breathing: ['breathe', 'breathing', 'choking', 'choke', 'air', 'can\'t breathe', 'not breathing'],
+                crime: ['break in', 'breaking in', 'stranger', 'robber', 'theft', 'attack', 'someone here', 'intruder', 'danger'],
+                medical: ['sick', 'chest', 'heart', 'seizure', 'unconscious', 'passed out', 'fainted', 'dizzy', 'throwing up']
+            };
+            
+            // ============== NON-EMERGENCY KEYWORDS ==============
+            const nonEmergencyWords = [
+                'pizza', 'food', 'hungry', 'order', 'eat', 'dinner', 'lunch', 'breakfast', 
+                'homework', 'test', 'quiz', 'school',
+                'bored', 'lonely', 'game', 'xbox', 'playstation', 'tv', 'netflix',
+                'lost pet', 'dog ran', 'cat missing', 'lost toy', 'lost phone',
+                'wifi', 'internet', 'broke my phone',
+                'joke', 'story', 'what time', 'weather',
+                'prank', 'just kidding', 'nevermind', 'nothing'
+            ];
+            
+            // ============== CHECK FOR EMERGENCY ==============
+            let hasEmergency = false;
+            let emergencyType = null;
+            
+            for (const [type, keywords] of Object.entries(emergencyKeywords)) {
+                if (keywords.some(keyword => userMsg.includes(keyword))) {
+                    hasEmergency = true;
+                    emergencyType = type;
+                    console.log('✅ EMERGENCY DETECTED:', type);
+                    
+                    // Set emergency in context
+                    if (!this.context.issueType) {
+                        this.context.issueType = type;
+                        this.context.confirmedEmergency = true;
+                        this.context.knowsIssue = true;
+                    }
+                    
+                    // RESET non-emergency counter
+                    this.context.nonEmergencyCount = 0;
+                    break;
+                }
+            }
+            
+            // ============== CHECK FOR NON-EMERGENCY ==============
+            const hasNonEmergency = nonEmergencyWords.some(word => userMsg.includes(word));
+            
+            if (hasNonEmergency) {
+                console.log('🚫 NON-EMERGENCY KEYWORD DETECTED');
+            }
+            
+            // ============== TRACK NON-EMERGENCY RESPONSES ==============
+            if (hasNonEmergency && !hasEmergency) {
+                this.context.nonEmergencyCount = (this.context.nonEmergencyCount || 0) + 1;
+                console.log('🚫 Non-emergency count now:', this.context.nonEmergencyCount);
+                
+                // ============== END CALL AFTER 2 NON-EMERGENCY RESPONSES ==============
+                if (this.context.nonEmergencyCount >= 2) {
+                    console.log('🛑 ENDING CALL - 2 non-emergency responses');
+                    this.context.readyToEnd = true;
+                    this.context.confirmedEmergency = false;
+                    setTimeout(() => this.showFeedback(), 2000);
+                    return "I need to end this call now. Remember - you should ONLY call 911 when there's a real emergency, like if someone is hurt, can't breathe, there's a fire, or someone is in danger. For everything else, talk to your parents or another trusted adult. Goodbye.";
+                }
+            }
+            
+            // ============== TRACK OTHER CONTEXT ==============
             const scaredWords = ['scared', 'help', 'please', 'hurry', 'quick', 'fast', 'afraid'];
             const unsureWords = ['um', 'uh', 'i think', 'maybe', 'i don\'t know'];
             
@@ -435,84 +503,15 @@
                 this.context.seemsUnsure = true;
             }
             
-            const emergencyTypes = {
-                fire: ['fire', 'burning', 'smoke', 'flames', 'burnt'],
-                injury: ['hurt', 'bleeding', 'blood', 'fell', 'injured', 'broken', 'cut', 'pain', 'wound'],
-                breathing: ['breathe', 'breathing', 'choking', 'choke', 'air', 'can\'t breathe'],
-                crime: ['break in', 'breaking in', 'stranger', 'robber', 'theft', 'attack', 'someone here', 'intruder'],
-                medical: ['sick', 'chest', 'heart', 'seizure', 'unconscious', 'passed out', 'fainted', 'dizzy', 'throwing up']
-            };
-            
-            // EXPANDED non-emergency detection
-            const nonEmergencyKeywords = [
-                // Food related
-                'pizza', 'food', 'hungry', 'order', 'eat', 'dinner', 'lunch', 'breakfast', 'snack', 'meal', 'restaurant', 'mcdonalds', 'burger', 'fries', 'ice cream', 'candy', 'soda', 'juice',
-                // Homework/school
-                'homework', 'test', 'quiz', 'grade', 'teacher', 'school work', 'math problem', 'essay',
-                // Lost items/pets (non-emergency)
-                'lost pet', 'dog ran', 'cat missing', 'lost toy', 'lost phone', 'can\'t find', 'missing my',
-                // Entertainment
-                'bored', 'lonely', 'netflix', 'tv', 'game', 'xbox', 'playstation', 'youtube', 'tiktok', 'video game', 'play with',
-                // Minor issues
-                'scared of dark', 'nightmare', 'can\'t sleep', 'bad dream', 'thunder', 'lightning scared',
-                // Technology
-                'wifi', 'internet', 'computer', 'ipad', 'tablet', 'broke my phone',
-                // Questions/requests
-                'what time', 'weather', 'how do i', 'can you tell me', 'i have a question', 'joke', 'story', 'sing',
-                // Other non-emergencies
-                'prank', 'just kidding', 'nevermind', 'nothing', 'forget it'
-            ];
-            
-            // Check if this specific message is non-emergency
-            const isNonEmergency = nonEmergencyKeywords.some(phrase => userMsg.includes(phrase));
-            
-            // Detect emergency type in this message
-            let hasEmergencyInMessage = false;
-            for (const [type, keywords] of Object.entries(emergencyTypes)) {
-                if (keywords.some(keyword => userMsg.includes(keyword))) {
-                    hasEmergencyInMessage = true;
-                    if (!this.context.issueType) {
-                        this.context.issueType = type;
-                        this.context.confirmedEmergency = true;
-                        this.context.knowsIssue = true;
-                    }
-                    break;
-                }
-            }
-            
-            // Track consecutive non-emergency responses
-            if (isNonEmergency && !hasEmergencyInMessage) {
-                this.context.nonEmergencyCount = (this.context.nonEmergencyCount || 0) + 1;
-                console.log('🚫 Non-emergency count:', this.context.nonEmergencyCount);
-            } else if (hasEmergencyInMessage) {
-                // Reset count if they mention an actual emergency
-                this.context.nonEmergencyCount = 0;
-                console.log('✅ Emergency detected, count reset');
-            }
-            
-            // =======================================================
-            // CRITICAL: Check for 2 non-emergency responses IN A ROW
-            // =======================================================
-            if (this.context.nonEmergencyCount >= 2 && !this.context.confirmedEmergency) {
-                console.log('🛑 Ending call - 2 non-emergency responses detected');
-                this.context.readyToEnd = true;
-                this.context.confirmedEmergency = false;
-                setTimeout(() => this.showFeedback(), 2000);
-                return "I need to end this call now. Remember - you should ONLY call 911 when there's a real emergency, like if someone is hurt, can't breathe, there's a fire, or someone is in danger. For everything else, talk to your parents or another trusted adult. Take care. Goodbye.";
-            }
-            
-            // Detect parent/adult mentions
             if (userMsg.includes('mom') || userMsg.includes('dad') || userMsg.includes('parent') || userMsg.includes('adult')) {
                 this.context.mentionedParent = true;
             }
             
-            // Check for name
             const namePatterns = ['my name is', 'i\'m ', 'im ', 'this is ', 'call me', 'i am '];
             if (!this.context.userName && namePatterns.some(pattern => userMsg.includes(pattern))) {
                 this.context.userName = true;
             }
             
-            // Check for location
             const locationWords = ['street', 'avenue', 'road', 'drive', 'lane', 'boulevard', 'house', 'home', 'school', 'park', 'store', 'apartment', 'building'];
             const hasNumber = /\d+/.test(userMsg);
             if ((hasNumber && locationWords.some(word => userMsg.includes(word))) || 
@@ -523,8 +522,9 @@
             
             // ==================== MESSAGE 1 ====================
             if (this.messageCount === 1) {
-                // First message is clearly non-emergency
-                if (isNonEmergency && !hasEmergencyInMessage) {
+                // First message is non-emergency
+                if (hasNonEmergency && !hasEmergency) {
+                    console.log('⚠️ First message is non-emergency');
                     if (userMsg.includes('pizza') || userMsg.includes('food') || userMsg.includes('hungry') || userMsg.includes('order') || userMsg.includes('eat')) {
                         return "I understand you want food. But 911 is ONLY for emergencies - like if someone is hurt, can't breathe, or there's a fire. Is there an actual emergency happening right now?";
                     } else if (userMsg.includes('homework') || userMsg.includes('test') || userMsg.includes('school')) {
@@ -540,31 +540,34 @@
                     }
                 }
                 
+                // Greeting
                 if (userMsg.match(/^(hi|hello|hey|um|uh|help)$/)) {
                     return "Hi there. It's okay, I'm here to help. Can you tell me what's going on?";
                 }
                 
+                // Just gives name
                 if (this.context.userName && !this.context.knowsIssue) {
                     return "Okay, thank you. Now can you tell me why you're calling? What's happening?";
                 }
                 
-                if (this.context.issueType && this.context.confirmedEmergency) {
+                // Emergency mentioned
+                if (hasEmergency) {
                     if (this.context.seemsScared) {
-                        if (this.context.issueType === 'fire') {
+                        if (emergencyType === 'fire') {
                             return "There's a fire? Okay, I need you to stay calm. Are you outside the house right now?";
-                        } else if (this.context.issueType === 'injury') {
+                        } else if (emergencyType === 'injury') {
                             return "Someone's hurt? Alright, I'm here to help. First, are YOU okay? Are you hurt too?";
-                        } else if (this.context.issueType === 'breathing') {
+                        } else if (emergencyType === 'breathing') {
                             return "They're having trouble breathing? Okay, stay with me. Are they awake? Can they hear you?";
-                        } else if (this.context.issueType === 'crime') {
+                        } else if (emergencyType === 'crime') {
                             return "There's someone there who shouldn't be? Are you somewhere safe right now? Are you hidden?";
                         } else {
                             return "I understand. You're doing great by calling. Are you safe right now?";
                         }
                     } else {
-                        if (this.context.issueType === 'fire') {
+                        if (emergencyType === 'fire') {
                             return "Okay, there's a fire. Where is the fire? Is everyone out of the building?";
-                        } else if (this.context.issueType === 'injury') {
+                        } else if (emergencyType === 'injury') {
                             return "Someone is hurt. Can you tell me who's hurt and what happened?";
                         } else {
                             return "I hear you. Tell me where you are so I can send help right away.";
@@ -572,17 +575,16 @@
                     }
                 }
                 
+                // Vague/unclear
                 this.context.seemsUnsure = true;
                 return "It's okay, take a breath. You can tell me. What made you want to call 911? Is something wrong?";
             }
             
             // ==================== MESSAGE 2+ ====================
-            // At this point, check first if 2 non-emergency responses (already handled above)
-            
             else if (this.messageCount === 2) {
-                // If first was non-emergency and this is too, call was already ended above
+                // Already handled: if 2 non-emergency responses, call ended above
                 
-                if (this.context.confirmedEmergency === null && this.context.issueType) {
+                if (this.context.confirmedEmergency === null && hasEmergency) {
                     this.context.confirmedEmergency = true;
                     return "Okay, that IS an emergency. I'm going to help you. Where are you right now? Can you tell me your address or what place you're at?";
                 }
@@ -599,16 +601,17 @@
                     if (!this.context.confirmedEmergency && this.context.redirectAttempts === 0) {
                         this.context.redirectAttempts++;
                         this.context.nonEmergencyCount++;
+                        console.log('🚫 "No" response - non-emergency count:', this.context.nonEmergencyCount);
                         return "So there's no emergency? Then why are you calling 911? This line is only for emergencies.";
                     }
                 }
                 
-                if (this.context.issueType && this.context.confirmedEmergency) {
-                    if (this.context.issueType === 'fire') {
+                if (hasEmergency && this.context.confirmedEmergency) {
+                    if (emergencyType === 'fire') {
                         return "A fire - okay. Are you and everyone else outside and safe? Where is your house?";
-                    } else if (this.context.issueType === 'injury') {
+                    } else if (emergencyType === 'injury') {
                         return "They're hurt. Is it bad? Are they bleeding a lot? Where are you?";
-                    } else if (this.context.issueType === 'breathing') {
+                    } else if (emergencyType === 'breathing') {
                         return "Trouble breathing is serious. Is their face turning blue? Do you know your address?";
                     } else {
                         return "I understand. I'm going to send help. What's your address? Or are you at home, school, or somewhere else?";
@@ -716,14 +719,6 @@
             
             // ==================== MESSAGE 3 ====================
             else if (this.messageCount === 3) {
-                // Third non-emergency response - end the call
-                if (isNonEmergency && this.context.nonEmergencyCount >= 3 && !this.context.confirmedEmergency) {
-                    this.context.readyToEnd = true;
-                    this.context.confirmedEmergency = false;
-                    setTimeout(() => this.showFeedback(), 2000);
-                    return "I have to hang up now. Remember - ONLY call 911 for real emergencies. Calling for things like food, homework, or games is wrong and can get you in trouble. Talk to your parents about what you need. Goodbye.";
-                }
-                
                 if (this.context.confirmedEmergency && this.context.knowsIssue) {
                     if (this.context.hasLocation) {
                         if (this.context.issueType === 'fire') {
