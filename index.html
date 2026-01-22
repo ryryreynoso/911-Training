@@ -307,7 +307,10 @@
                 ⚠️ Can't hear the operator? Make sure:<br>
                 • Your phone is NOT on silent mode<br>
                 • Volume is turned UP<br>
-                • You're in Safari browser, not Claude app
+                • You're in Safari browser, not Claude app<br>
+                <br>
+                💡 For better voice quality:<br>
+                Settings → Accessibility → Spoken Content → Voices → English → Download "Samantha (Enhanced)"
             </p>
             <button class="back-btn" onclick="app.endVoiceCall()">End Call</button>
         </div>
@@ -417,7 +420,7 @@
             setTimeout(() => {
                 const response = this.getResponse(text.toLowerCase());
                 this.addOperatorMessage(response);
-            }, 800);
+            }, 500);  // Reduced from 800ms to 500ms - faster response
         },
         
         getResponse(userMsg) {
@@ -823,7 +826,7 @@
                                 console.log('⚠️ Restart failed (already running):', e.message);
                             }
                         }
-                    }, 500);
+                    }, 200);  // Reduced from 500ms to 200ms - faster restart
                 }
             };
             
@@ -865,7 +868,7 @@
                             console.log('Recognition restart skipped');
                         }
                     }
-                }, 500);
+                }, 300);  // Reduced from 500ms to 300ms - faster restart
             });
         },
         
@@ -880,22 +883,36 @@
                 
                 const utterance = new SpeechSynthesisUtterance(text);
                 
-                // Try to select a female voice
-                const femaleVoice = voices.find(v => 
-                    v.name.includes('Samantha') || 
-                    v.name.includes('Karen') || 
+                // Try to select the most natural-sounding voice
+                // Priority: Enhanced voices > Premium voices > Any English voice
+                const preferredVoice = voices.find(v => 
+                    // iOS enhanced voices (most natural)
+                    v.name.includes('Samantha (Enhanced)') ||
+                    v.name.includes('Nicky (Enhanced)') ||
+                    v.name.includes('Zoe (Enhanced)') ||
+                    // iOS premium voices
+                    v.name.includes('Samantha') ||
+                    v.name.includes('Karen') ||
                     v.name.includes('Moira') ||
-                    v.name.includes('Female') ||
-                    v.lang.startsWith('en')
+                    v.name.includes('Nicky') ||
+                    v.name.includes('Tessa') ||
+                    // Android natural voices
+                    v.name.includes('Google US English') ||
+                    v.name.includes('female') ||
+                    // Any English voice
+                    (v.lang === 'en-US' && !v.localService)
                 );
                 
-                if (femaleVoice) {
-                    console.log('Using voice:', femaleVoice.name);
-                    utterance.voice = femaleVoice;
+                if (preferredVoice) {
+                    console.log('✅ Using voice:', preferredVoice.name);
+                    utterance.voice = preferredVoice;
+                } else {
+                    console.log('⚠️ Using default voice');
                 }
                 
-                utterance.rate = 0.9;
-                utterance.pitch = 1.1;
+                // Faster and more natural speech
+                utterance.rate = 1.1;  // Increased from 0.9 - speaks faster
+                utterance.pitch = 1.0;  // Slightly lower for more natural sound
                 utterance.volume = 1.0;
                 utterance.lang = 'en-US';
                 
