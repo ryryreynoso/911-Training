@@ -824,120 +824,179 @@
         // Initialize speech recognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
-        recognition.continuous = true; // Keep listening continuously
-        recognition.interimResults = true; // Show interim results
+        recognition.continuous = false; // Changed back to false for better mobile support
+        recognition.interimResults = true;
         recognition.lang = 'en-US';
+        recognition.maxAlternatives = 1;
         
         let finalTranscript = '';
-        let silenceTimer = null;
+        let interimTranscript = '';
+        let restartAttempts = 0;
+        const MAX_RESTART_ATTEMPTS = 3;
         
         recognition.onstart = function() {
-            console.log('Speech recognition started');
-            document.getElementById('callStatus').textContent = 'Listening...';
+            console.log('✅ Speech recognition STARTED');
+            document.getElementById('callStatus').textContent = '🎤 Listening - Speak now!';
             document.getElementById('listeningText').style.display = 'block';
-            document.getElementById('micBtn').classList.add('listening');
+            document.getElementById('listeningText').textContent = '🔴 LISTENING - Speak clearly into microphone';
+            isListening = true;
+            restartAttempts = 0;
         };
         
         recognition.onresult = function(event) {
-            let interimTranscript = '';
+            interimTranscript = '';
             
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
                     finalTranscript += transcript + ' ';
-                    console.log('Final transcript:', transcript);
+                    console.log('✅ FINAL:', transcript);
                 } else {
                     interimTranscript += transcript;
-                    console.log('Interim:', transcript);
+                    console.log('⏳ Interim:', transcript);
                 }
             }
             
             // Show what's being heard in real-time
-            document.getElementById('userSpeech').textContent = interimTranscript || finalTranscript;
+            const displayText = finalTranscript + interimTranscript;
+            document.getElementById('userSpeech').textContent = displayText;
+            document.getElementById('userSpeech').style.color = interimTranscript ? '#3498db' : '#2ecc71';
             
-            // If we got final results, wait for silence then process
+            // If we got final results, process immediately
             if (finalTranscript.trim()) {
-                clearTimeout(silenceTimer);
-                silenceTimer = setTimeout(() => {
-                    const userMessage = finalTranscript.trim();
-                    if (userMessage) {
-                        processUserSpeech(userMessage);
-                        finalTranscript = '';
-                    }
-                }, 1500); // Wait 1.5 seconds of silence
+                const userMessage = finalTranscript.trim();
+                console.log('📝 Processing final transcript:', userMessage);
+                recognition.stop();
+                processUserSpeech(userMessage);
+                finalTranscript = '';
+                interimTranscript = '';
             }
         };
         
+        recognition.onspeechstart = function() {
+            console.log('🗣️ Speech detected!');
+            document.getElementById('callStatus').textContent = '🗣️ Hearing you...';
+        };
+        
+        recognition.onspeechend = function() {
+            console.log('🔇 Speech ended');
+        };
+        
+        recognition.onaudiostart = function() {
+            console.log('🎧 Audio capture started');
+        };
+        
+        recognition.onaudioend = function() {
+            console.log('🔇 Audio capture ended');
+        };
+        
         recognition.onerror = function(event) {
-            console.error('Speech recognition error:', event.error);
+            console.error('❌ Speech recognition error:', event.error);
+            isListening = false;
             
             if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                alert('⚠️ Microphone Access Required\n\nThis app needs microphone permission to work.\n\n📱 You MUST open this in Safari:\n1. Copy this page URL\n2. Open Safari\n3. Paste the URL\n4. Allow microphone when asked\n\nVoice features only work in Safari, not in the Claude app.');
+                alert('⚠️ MICROPHONE BLOCKED\n\nYou MUST:\n1. Open this in Safari (not Claude app)\n2. Allow microphone when asked\n3. Check Settings → Safari → Microphone\n\nVoice ONLY works in Safari browser!');
                 endVoiceCall();
+                return;
             } else if (event.error === 'no-speech') {
-                // Automatically restart if no speech detected
-                if (!callEnded && voiceCallActive) {
+                console.log('⚠️ No speech detected, restarting...');
+                document.getElementById('callStatus').textContent = '👂 Listening... (Speak louder?)';
+                // Auto restart
+                if (!callEnded && voiceCallActive && !synthesis.speaking) {
                     setTimeout(() => {
                         if (!callEnded && voiceCallActive) {
                             recognition.start();
                         }
-                    }, 1000);
+                    }, 500);
                 }
             } else if (event.error === 'audio-capture') {
-                alert('⚠️ Microphone Not Working\n\nTry:\n1. Check microphone is not muted\n2. Close other apps using microphone\n3. Restart Safari\n4. Make sure you\'re in Safari (not Claude app)');
+                alert('❌ MICROPHONE ERROR\n\n1. Close other apps using mic\n2. Restart Safari\n3. Check microphone isn\'t covered\n4. Try removing phone case');
+                // Try to restart anyway
+                setTimeout(() => {
+                    if (!callEnded && voiceCallActive && restartAttempts < MAX_RESTART_ATTEMPTS) {
+                        restartAttempts++;
+                        recognition.start();
+                    }
+                }, 2000);
             } else if (event.error === 'network') {
-                // Network error, try to restart
+                console.log('⚠️ Network error, restarting...');
                 if (!callEnded && voiceCallActive) {
-                    setTimeout(() => {
-                        if (!callEnded && voiceCallActive) {
-                            recognition.start();
-                        }
-                    }, 1000);
+                    setTimeout(() => recognition.start(), 1000);
+                }
+            } else if (event.error === 'aborted') {
+                console.log('⚠️ Recognition aborted, restarting...');
+                if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                    setTimeout(() => recognition.start(), 500);
                 }
             } else {
-                document.getElementById('callStatus').textContent = 'Error: ' + event.error;
+                document.getElementById('callStatus').textContent = '❌ Error: ' + event.error;
+                console.log('Restarting after error...');
+                setTimeout(() => {
+                    if (!callEnded && voiceCallActive) {
+                        recognition.start();
+                    }
+                }, 1000);
             }
         };
         
         recognition.onend = function() {
-            console.log('Speech recognition ended');
-            // Automatically restart recognition to keep listening
+            console.log('⏹️ Recognition ended');
+            isListening = false;
+            
+            // Always restart recognition to keep listening (unless operator is speaking)
             if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                console.log('🔄 Auto-restarting recognition...');
                 setTimeout(() => {
-                    if (!callEnded && voiceCallActive) {
-                        console.log('Restarting recognition...');
-                        recognition.start();
+                    if (!callEnded && voiceCallActive && !synthesis.speaking) {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.error('Failed to restart:', e);
+                            setTimeout(() => {
+                                if (!callEnded && voiceCallActive) {
+                                    recognition.start();
+                                }
+                            }, 1000);
+                        }
                     }
-                }, 500);
+                }, 300);
             }
         };
         
         // Show voice interface
         document.getElementById('modeSelection').style.display = 'none';
         document.getElementById('voiceCallInterface').style.display = 'block';
-        document.getElementById('callStatus').textContent = 'Connected';
+        document.getElementById('callStatus').textContent = 'Connecting...';
         
-        // Initialize voices
-        const voices = synthesis.getVoices();
-        console.log('Available voices:', voices.length);
-        
-        // Load voices if not loaded
-        if (voices.length === 0) {
-            synthesis.onvoiceschanged = function() {
-                console.log('Voices loaded:', synthesis.getVoices().length);
-            };
-        }
+        // Test if we can access voices
+        setTimeout(() => {
+            const voices = synthesis.getVoices();
+            console.log('📢 Available voices:', voices.length);
+            if (voices.length === 0) {
+                console.log('⚠️ No voices loaded yet, waiting...');
+                synthesis.onvoiceschanged = function() {
+                    console.log('✅ Voices loaded:', synthesis.getVoices().length);
+                };
+            }
+        }, 100);
         
         // Speak first message then start listening
         setTimeout(() => {
-            console.log('Speaking first message...');
+            console.log('📞 Starting call...');
             speakOperatorMessage("911, what's your emergency?", () => {
-                // Start continuous listening after operator speaks
+                // Start listening after operator speaks
+                console.log('👂 Starting to listen for user...');
                 setTimeout(() => {
                     if (!callEnded && voiceCallActive) {
-                        recognition.start();
+                        try {
+                            recognition.start();
+                            console.log('✅ Recognition started successfully');
+                        } catch (e) {
+                            console.error('❌ Failed to start recognition:', e);
+                            alert('Error starting microphone. Make sure:\n1. You\'re in Safari\n2. Microphone permission granted\n3. No other app is using mic');
+                        }
                     }
-                }, 500);
+                }, 1000);
             });
         }, 1000);
     }
