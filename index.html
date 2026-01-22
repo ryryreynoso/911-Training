@@ -795,7 +795,13 @@
         recognition.interimResults = false;
         recognition.lang = 'en-US';
         
+        recognition.onstart = function() {
+            console.log('Speech recognition started');
+            document.getElementById('callStatus').textContent = 'Listening...';
+        };
+        
         recognition.onresult = function(event) {
+            console.log('Speech recognized:', event.results[0][0].transcript);
             const transcript = event.results[0][0].transcript;
             handleVoiceInput(transcript);
         };
@@ -804,12 +810,16 @@
             console.error('Speech recognition error:', event.error);
             
             if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-                alert('Microphone access denied. Please:\n\n1. Tap the lock icon in your browser address bar\n2. Enable microphone permissions\n3. Reload the page and try again');
+                alert('⚠️ Microphone Access Required\n\nThis app needs microphone permission to work.\n\n📱 You MUST open this in Safari:\n1. Copy this page URL\n2. Open Safari\n3. Paste the URL\n4. Allow microphone when asked\n\nVoice features only work in Safari, not in the Claude app.');
                 endVoiceCall();
             } else if (event.error === 'no-speech') {
-                document.getElementById('callStatus').textContent = 'Didn\'t hear anything. Try again.';
+                document.getElementById('callStatus').textContent = 'Didn\'t hear you. Tap mic and speak.';
+                document.getElementById('listeningText').style.display = 'none';
+                document.getElementById('micBtn').classList.remove('listening');
+            } else if (event.error === 'audio-capture') {
+                alert('⚠️ Microphone Not Working\n\nTry:\n1. Check microphone is not muted\n2. Close other apps using microphone\n3. Restart Safari\n4. Make sure you\'re in Safari (not Claude app)');
             } else {
-                document.getElementById('callStatus').textContent = 'Error: ' + event.error;
+                document.getElementById('callStatus').textContent = 'Error: ' + event.error + ' - Try again';
             }
             
             document.getElementById('listeningText').style.display = 'none';
@@ -818,9 +828,13 @@
         };
         
         recognition.onend = function() {
+            console.log('Speech recognition ended');
             document.getElementById('listeningText').style.display = 'none';
             document.getElementById('micBtn').classList.remove('listening');
             isListening = false;
+            if (!callEnded && voiceCallActive) {
+                document.getElementById('callStatus').textContent = 'Tap mic to speak';
+            }
         };
         
         // Show voice interface
@@ -828,10 +842,22 @@
         document.getElementById('voiceCallInterface').style.display = 'block';
         document.getElementById('callStatus').textContent = 'Connected';
         
-        // Speak first message
+        // Initialize voices
+        const voices = synthesis.getVoices();
+        console.log('Available voices:', voices.length);
+        
+        // Load voices if not loaded
+        if (voices.length === 0) {
+            synthesis.onvoiceschanged = function() {
+                console.log('Voices loaded:', synthesis.getVoices().length);
+            };
+        }
+        
+        // Speak first message after a delay to ensure everything is ready
         setTimeout(() => {
+            console.log('Speaking first message...');
             speakOperatorMessage("911, what's your emergency?");
-        }, 1000);
+        }, 1500);
     }
     
     function toggleMicrophone() {
@@ -891,35 +917,69 @@
     }
     
     function speakOperatorMessage(message) {
+        console.log('Attempting to speak:', message);
+        
         // Cancel any ongoing speech
         synthesis.cancel();
         
-        // Create utterance
-        const utterance = new SpeechSynthesisUtterance(message);
-        utterance.rate = 0.9; // Slightly slower for clarity
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Try to use a female voice if available
-        const voices = synthesis.getVoices();
-        const femaleVoice = voices.find(voice => 
-            voice.name.includes('Female') || 
-            voice.name.includes('Samantha') ||
-            voice.name.includes('Karen')
-        );
-        if (femaleVoice) {
-            utterance.voice = femaleVoice;
-        }
-        
-        utterance.onend = function() {
-            // Enable microphone after operator finishes speaking
-            if (!callEnded && voiceCallActive) {
-                document.getElementById('callStatus').textContent = 'Your turn to speak';
+        // Wait a moment for cancel to complete
+        setTimeout(() => {
+            // Create utterance
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.rate = 0.9; // Slightly slower for clarity
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            utterance.lang = 'en-US';
+            
+            // Try to use a female voice if available
+            const voices = synthesis.getVoices();
+            console.log('Selecting from', voices.length, 'voices');
+            
+            // Prefer female English voices
+            const femaleVoice = voices.find(voice => 
+                voice.lang.includes('en') && (
+                    voice.name.includes('Female') || 
+                    voice.name.includes('Samantha') ||
+                    voice.name.includes('Karen') ||
+                    voice.name.includes('Victoria') ||
+                    voice.name.includes('Susan')
+                )
+            );
+            
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+                console.log('Using voice:', femaleVoice.name);
+            } else if (voices.length > 0) {
+                // Use any English voice
+                const englishVoice = voices.find(v => v.lang.includes('en'));
+                if (englishVoice) {
+                    utterance.voice = englishVoice;
+                    console.log('Using voice:', englishVoice.name);
+                }
             }
-        };
-        
-        document.getElementById('callStatus').textContent = 'Operator speaking...';
-        synthesis.speak(utterance);
+            
+            utterance.onstart = function() {
+                console.log('Speech started');
+                document.getElementById('callStatus').textContent = 'Operator speaking...';
+            };
+            
+            utterance.onend = function() {
+                console.log('Speech ended');
+                // Enable microphone after operator finishes speaking
+                if (!callEnded && voiceCallActive) {
+                    document.getElementById('callStatus').textContent = 'Tap mic to respond';
+                }
+            };
+            
+            utterance.onerror = function(event) {
+                console.error('Speech synthesis error:', event.error);
+                document.getElementById('callStatus').textContent = 'Voice error - check console';
+                alert('⚠️ Voice Not Working\n\nPossible issues:\n1. You\'re in Claude app (must use Safari)\n2. Phone is on silent mode\n3. Volume is too low\n\nOpen this page in Safari browser!');
+            };
+            
+            console.log('Starting speech synthesis...');
+            synthesis.speak(utterance);
+        }, 100);
     }
     
     function endVoiceCall() {
