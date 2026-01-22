@@ -598,11 +598,12 @@
                 }
                 
                 if (userMsg.includes('no') || userMsg.includes('nope')) {
-                    if (!this.context.confirmedEmergency && this.context.redirectAttempts === 0) {
-                        this.context.redirectAttempts++;
-                        this.context.nonEmergencyCount++;
-                        console.log('🚫 "No" response - non-emergency count:', this.context.nonEmergencyCount);
-                        return "So there's no emergency? Then why are you calling 911? This line is only for emergencies.";
+                    if (!this.context.confirmedEmergency) {
+                        console.log('🛑 User said "no" - no emergency, ending call');
+                        this.context.readyToEnd = true;
+                        this.context.confirmedEmergency = false;
+                        setTimeout(() => this.showFeedback(), 2000);
+                        return "Okay. Remember - 911 is ONLY for real emergencies like if someone is hurt, can't breathe, there's a fire, or someone is in danger. For anything else, talk to your parents. Goodbye.";
                     }
                 }
                 
