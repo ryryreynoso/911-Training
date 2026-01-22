@@ -12,17 +12,13 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         .container {
             max-width: 500px;
-            width: 100%;
+            margin: 0 auto;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
         }
         .header {
             background: linear-gradient(135deg, #e74c3c, #c0392b);
@@ -30,7 +26,8 @@
             padding: 25px;
             text-align: center;
         }
-        .mode-selection { padding: 30px; }
+        .screen { display: none; padding: 30px; }
+        .screen.active { display: block; }
         .mode-btn {
             width: 100%;
             padding: 20px;
@@ -46,6 +43,70 @@
             gap: 15px;
         }
         .mode-btn:hover { transform: translateY(-2px); }
+        .back-btn {
+            width: 100%;
+            padding: 15px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .message.operator { flex-direction: row; }
+        .message.user { flex-direction: row-reverse; }
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .operator .message-avatar { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .user .message-avatar { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 15px;
+        }
+        .operator .message-content { background: white; color: #2c3e50; }
+        .user .message-content { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+        .input-area input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 15px;
+        }
+        .send-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -56,28 +117,112 @@
         </div>
 
 ```
-    <div class="mode-selection">
-        <button class="mode-btn" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="alert('Feature works! Full version in final file')">
-            <span>📚</span>
-            <span>Learn About 911</span>
-        </button>
-        <button class="mode-btn" style="background: linear-gradient(135deg, #2ecc71, #27ae60);" onclick="alert('Feature works! Full version in final file')">
-            <span>🎭</span>
-            <span>Practice Scenarios</span>
-        </button>
-        <button class="mode-btn" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);" onclick="alert('Feature works! Full version in final file')">
+    <!-- Main Menu -->
+    <div id="mainMenu" class="screen active">
+        <button class="mode-btn" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="showChat()">
             <span>💬</span>
-            <span>Free Practice Call</span>
+            <span>Practice 911 Call</span>
         </button>
-        <button class="mode-btn" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="alert('Voice Call: Must open in Safari browser, not Claude app!')">
+        <button class="mode-btn" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="alert('Voice features require opening this file in Safari browser (not Claude app). Download the file and open it in Safari!')">
             <span>📞</span>
-            <span>Voice Call Practice</span>
+            <span>Voice Call (Safari Only)</span>
         </button>
+    </div>
+    
+    <!-- Chat Screen -->
+    <div id="chatScreen" class="screen">
+        <div class="chat-messages" id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter') sendMsg()">
+            <button class="send-btn" onclick="sendMsg()">Send</button>
+        </div>
+        <button class="back-btn" onclick="goHome()">Back to Menu</button>
     </div>
 </div>
 
 <script>
-    console.log('✅ App loaded successfully - no script errors!');
+    let messages = [];
+    let messageCount = 0;
+    
+    function showChat() {
+        document.getElementById('mainMenu').classList.remove('active');
+        document.getElementById('chatScreen').classList.add('active');
+        addOperatorMsg("911, what's your emergency?");
+    }
+    
+    function goHome() {
+        document.getElementById('chatScreen').classList.remove('active');
+        document.getElementById('mainMenu').classList.add('active');
+        document.getElementById('messages').innerHTML = '';
+        messages = [];
+        messageCount = 0;
+    }
+    
+    function addOperatorMsg(text) {
+        const msg = document.createElement('div');
+        msg.className = 'message operator';
+        msg.innerHTML = `
+            <div class="message-avatar">👮</div>
+            <div class="message-content">${text}</div>
+        `;
+        document.getElementById('messages').appendChild(msg);
+        document.getElementById('messages').scrollTop = 999999;
+    }
+    
+    function addUserMsg(text) {
+        const msg = document.createElement('div');
+        msg.className = 'message user';
+        msg.innerHTML = `
+            <div class="message-avatar">🧒</div>
+            <div class="message-content">${text}</div>
+        `;
+        document.getElementById('messages').appendChild(msg);
+        document.getElementById('messages').scrollTop = 999999;
+    }
+    
+    function sendMsg() {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        addUserMsg(text);
+        input.value = '';
+        messages.push(text.toLowerCase());
+        messageCount++;
+        
+        setTimeout(() => {
+            const response = getResponse(text.toLowerCase());
+            addOperatorMsg(response);
+        }, 800);
+    }
+    
+    function getResponse(userMsg) {
+        // Check for emergency keywords
+        const isEmergency = ['fire', 'hurt', 'bleeding', 'emergency', 'help', 'injured', 'accident', 'breathing'].some(word => userMsg.includes(word));
+        const isNonEmergency = ['pizza', 'food', 'homework', 'pet', 'lost', 'bored'].some(word => userMsg.includes(word));
+        
+        if (messageCount === 1) {
+            if (isEmergency) {
+                return "Okay, I understand. Where are you? What's your address?";
+            } else if (isNonEmergency) {
+                return "I understand, but 911 is for emergencies only. Is anyone hurt or in danger right now?";
+            } else {
+                return "Can you tell me what's happening? Is someone hurt?";
+            }
+        } else if (messageCount === 2) {
+            if (isEmergency || userMsg.includes('yes')) {
+                return "Help is on the way. Stay calm and stay where you are. You're doing great.";
+            } else if (userMsg.includes('no') || isNonEmergency) {
+                return "Then 911 isn't the right number to call. Talk to your parents about this instead. Goodbye.";
+            } else {
+                return "I need to know if this is an emergency. Is someone hurt or in danger?";
+            }
+        } else {
+            return "Emergency services are coming. You did the right thing by calling 911.";
+        }
+    }
+    
+    console.log('✅ App loaded successfully!');
 </script>
 ```
 
